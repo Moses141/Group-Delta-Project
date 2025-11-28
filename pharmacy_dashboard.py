@@ -69,6 +69,56 @@ def get_medications(df):
         return sorted(df['drug_name'].unique().tolist())
     return []
 
+@st.cache_data
+def get_branches(df):
+    """Get list of available branches/facilities"""
+    # Try different possible column names for branches
+    branch_cols = ['facility_type', 'distribution_region', 'branch', 'facility', 'location']
+    for col in branch_cols:
+        if col in df.columns:
+            branches = sorted(df[col].unique().tolist())
+            return branches, col
+    return [], None
+
+def get_branch_stock_data(df, medication, branch_col):
+    """Get stock data for a medication across all branches"""
+    if branch_col is None or 'drug_name' not in df.columns:
+        return None
+    
+    # Get latest stock data per branch
+    branch_data = []
+    branches = df[branch_col].unique()
+    
+    for branch in branches:
+        branch_df = df[(df['drug_name'] == medication) & (df[branch_col] == branch)].copy()
+        if len(branch_df) > 0:
+            # Get most recent record for this branch
+            branch_df = branch_df.sort_values('stock_received_date', ascending=False)
+            latest = branch_df.iloc[0]
+            
+            branch_data.append({
+                'branch': branch,
+                'current_stock': latest.get('initial_stock_units', 0),
+                'reorder_level': latest.get('reorder_level', 0),
+                'average_demand': latest.get('average_monthly_demand', 0),
+                'last_update': latest.get('stock_received_date', None),
+                'lead_time': latest.get('lead_time_days', 7),
+                'supplier_reliability': latest.get('supplier_reliability_score', 0)
+            })
+    
+    return pd.DataFrame(branch_data) if branch_data else None
+
+@st.cache_data
+def get_branches(df):
+    """Get list of available branches/facilities"""
+    # Try different possible column names for branches
+    branch_cols = ['facility_type', 'distribution_region', 'branch', 'facility', 'location']
+    for col in branch_cols:
+        if col in df.columns:
+            branches = sorted(df[col].unique().tolist())
+            return branches, col
+    return [], None
+
 def prepare_time_series(df, medication, target_col='average_monthly_demand', time_col='stock_received_date'):
     """Prepare time series data for a specific medication"""
     df_med = df[df['drug_name'] == medication].copy() if 'drug_name' in df.columns else df.copy()
@@ -344,8 +394,15 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
+    # Get branches
+    branches, branch_col = get_branches(df)
+    has_branches = len(branches) > 0 and branch_col is not None
+    
     # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📈 Demand Forecast", "📦 Stock Analysis", "📊 Historical Trends", "🔍 Detailed View"])
+    if has_branches:
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Demand Forecast", "📦 Stock Analysis", "🏢 Multi-Branch Monitoring", "📊 Historical Trends", "🔍 Detailed View"])
+    else:
+        tab1, tab2, tab3, tab4 = st.tabs(["📈 Demand Forecast", "📦 Stock Analysis", "📊 Historical Trends", "🔍 Detailed View"])
     
     with tab1:
         st.subheader("Demand Forecast")
@@ -474,7 +531,194 @@ def main():
             if recommended_order > 0:
                 st.write(f"**Recommended Order:** {recommended_order:,.0f} units")
     
-    with tab3:
+    # Multi-Branch Monitoring Tab
+    if has_branches:
+        with tab3:
+            st.subheader("Multi-Branch Stock Monitoring")
+            
+            # Get branch stock data
+            branch_stock_df = get_branch_stock_data(df, selected_med, branch_col)
+            
+            if branch_stock_df is not None and len(branch_stock_df) > 0:
+                # Calculate stock status for each branch
+                branch_stock_df['daily_demand'] = branch_stock_df['average_demand'] / 30
+                branch_stock_df['days_remaining'] = branch_stock_df['current_stock'] / branch_stock_df['daily_demand']
+                branch_stock_df['days_remaining'] = branch_stock_df['days_remaining'].replace([np.inf, -np.inf], np.nan)
+                
+                # Determine status
+                def get_stock_status(row):
+                    days = row['days_remaining']
+                    lead_time = row['lead_time']
+                    if pd.isna(days):
+                        return "Unknown"
+                    elif days < lead_time:
+                        return "Critical"
+                    elif days < lead_time * 1.5:
+                        return "Low"
+                    elif row['current_stock'] < row['reorder_level']:
+                        return "Reorder Soon"
+                    else:
+                        return "Adequate"
+                
+                branch_stock_df['status'] = branch_stock_df.apply(get_stock_status, axis=1)
+                
+                # Summary metrics
+                col1, col2, col3, col4 = st.columns(4)
+                total_stock = branch_stock_df['current_stock'].sum()
+                total_demand = branch_stock_df['average_demand'].sum()
+                critical_branches = len(branch_stock_df[branch_stock_df['status'] == 'Critical'])
+                low_branches = len(branch_stock_df[branch_stock_df['status'] == 'Low'])
+                
+                with col1:
+                    st.metric("Total Stock", f"{total_stock:,.0f}", "Across all branches")
+                with col2:
+                    st.metric("Total Demand", f"{total_demand:,.0f}", "Monthly average")
+                with col3:
+                    st.metric("Critical Branches", critical_branches, f"{low_branches} low stock" if low_branches > 0 else "")
+                with col4:
+                    avg_days = branch_stock_df['days_remaining'].mean()
+                    st.metric("Avg Days Remaining", f"{avg_days:.1f}", "Across branches")
+                
+                # Stock comparison chart
+                st.markdown("### 📊 Stock Levels by Branch")
+                fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+                
+                # Sort by stock level
+                branch_sorted = branch_stock_df.sort_values('current_stock', ascending=True)
+                
+                # Stock levels bar chart
+                colors = []
+                for status in branch_sorted['status']:
+                    if status == 'Critical':
+                        colors.append('#dc3545')
+                    elif status == 'Low':
+                        colors.append('#ffc107')
+                    elif status == 'Reorder Soon':
+                        colors.append('#ff9800')
+                    else:
+                        colors.append('#28a745')
+                
+                axes[0].barh(branch_sorted['branch'], branch_sorted['current_stock'], color=colors, alpha=0.7)
+                axes[0].axvline(x=branch_sorted['reorder_level'].mean(), color='red', linestyle='--', label='Avg Reorder Level')
+                axes[0].set_xlabel('Current Stock (units)', fontsize=12)
+                axes[0].set_ylabel('Branch', fontsize=12)
+                axes[0].set_title(f'Stock Levels by Branch - {selected_med}', fontsize=14, fontweight='bold')
+                axes[0].legend()
+                axes[0].grid(True, alpha=0.3, axis='x')
+                
+                # Days remaining chart
+                axes[1].barh(branch_sorted['branch'], branch_sorted['days_remaining'], color=colors, alpha=0.7)
+                axes[1].axvline(x=branch_sorted['lead_time'].mean(), color='orange', linestyle='--', label='Avg Lead Time')
+                axes[1].set_xlabel('Days of Stock Remaining', fontsize=12)
+                axes[1].set_ylabel('Branch', fontsize=12)
+                axes[1].set_title('Days of Stock Remaining by Branch', fontsize=14, fontweight='bold')
+                axes[1].legend()
+                axes[1].grid(True, alpha=0.3, axis='x')
+                
+                plt.tight_layout()
+                st.pyplot(fig)
+                
+                # Detailed branch table
+                st.markdown("### 📋 Branch Details")
+                display_df = branch_stock_df[[
+                    'branch', 'current_stock', 'reorder_level', 
+                    'average_demand', 'days_remaining', 'status', 'lead_time'
+                ]].copy()
+                display_df.columns = ['Branch', 'Current Stock', 'Reorder Level', 
+                                     'Avg Monthly Demand', 'Days Remaining', 'Status', 'Lead Time (days)']
+                display_df['Current Stock'] = display_df['Current Stock'].round(0).astype(int)
+                display_df['Reorder Level'] = display_df['Reorder Level'].round(0).astype(int)
+                display_df['Avg Monthly Demand'] = display_df['Avg Monthly Demand'].round(0).astype(int)
+                display_df['Days Remaining'] = display_df['Days Remaining'].round(1)
+                display_df['Lead Time (days)'] = display_df['Lead Time (days)'].round(0).astype(int)
+                
+                # Add status emoji
+                status_emoji = {
+                    'Adequate': '🟢',
+                    'Reorder Soon': '🟡',
+                    'Low': '🟠',
+                    'Critical': '🔴',
+                    'Unknown': '⚪'
+                }
+                display_df['Status'] = display_df['Status'].apply(lambda x: f"{status_emoji.get(x, '⚪')} {x}")
+                
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                
+                # Alerts section
+                critical_branches_list = branch_stock_df[branch_stock_df['status'] == 'Critical']
+                if len(critical_branches_list) > 0:
+                    st.markdown("### ⚠️ Critical Stock Alerts")
+                    for _, branch in critical_branches_list.iterrows():
+                        st.markdown(f"""
+                        <div class="danger-card">
+                            <strong>🔴 {branch['branch']}:</strong> Critical stock level! 
+                            Current stock: {branch['current_stock']:,.0f} units 
+                            ({branch['days_remaining']:.1f} days remaining). 
+                            Lead time: {branch['lead_time']} days. 
+                            <strong>Immediate action required!</strong>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                low_branches_list = branch_stock_df[branch_stock_df['status'] == 'Low']
+                if len(low_branches_list) > 0:
+                    st.markdown("### ⚠️ Low Stock Warnings")
+                    for _, branch in low_branches_list.iterrows():
+                        st.markdown(f"""
+                        <div class="warning-card">
+                            <strong>🟠 {branch['branch']}:</strong> Low stock level! 
+                            Current stock: {branch['current_stock']:,.0f} units 
+                            ({branch['days_remaining']:.1f} days remaining). 
+                            Consider reordering soon.
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Stock distribution pie chart
+                st.markdown("### 📈 Stock Distribution")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Stock by status
+                    status_counts = branch_stock_df['status'].value_counts()
+                    fig_pie, ax_pie = plt.subplots(figsize=(8, 6))
+                    colors_pie = {
+                        'Adequate': '#28a745',
+                        'Reorder Soon': '#ff9800',
+                        'Low': '#ffc107',
+                        'Critical': '#dc3545'
+                    }
+                    pie_colors = [colors_pie.get(s, '#6c757d') for s in status_counts.index]
+                    ax_pie.pie(status_counts.values, labels=status_counts.index, autopct='%1.1f%%', 
+                              colors=pie_colors, startangle=90)
+                    ax_pie.set_title('Branches by Stock Status', fontsize=12, fontweight='bold')
+                    st.pyplot(fig_pie)
+                
+                with col2:
+                    # Stock percentage by branch
+                    branch_stock_df_pct = branch_stock_df.copy()
+                    branch_stock_df_pct['stock_pct'] = (branch_stock_df_pct['current_stock'] / total_stock * 100).round(1)
+                    branch_stock_df_pct = branch_stock_df_pct.sort_values('stock_pct', ascending=False)
+                    
+                    fig_bar, ax_bar = plt.subplots(figsize=(8, 6))
+                    ax_bar.barh(branch_stock_df_pct['branch'], branch_stock_df_pct['stock_pct'], 
+                               color='steelblue', alpha=0.7)
+                    ax_bar.set_xlabel('Percentage of Total Stock (%)', fontsize=11)
+                    ax_bar.set_ylabel('Branch', fontsize=11)
+                    ax_bar.set_title('Stock Distribution Across Branches', fontsize=12, fontweight='bold')
+                    ax_bar.grid(True, alpha=0.3, axis='x')
+                    st.pyplot(fig_bar)
+                
+            else:
+                st.warning(f"No branch data available for {selected_med}")
+    
+    # Adjust tab numbers for Historical Trends and Detailed View
+    if has_branches:
+        hist_tab = tab4
+        detail_tab = tab5
+    else:
+        hist_tab = tab3
+        detail_tab = tab4
+    
+    with hist_tab:
         st.subheader("Historical Demand Trends")
         
         # Prepare historical data
@@ -538,7 +782,7 @@ def main():
             recent_data['Demand'] = recent_data['Demand'].round(0)
             st.dataframe(recent_data, use_container_width=True, hide_index=True)
     
-    with tab4:
+    with detail_tab:
         st.subheader("Detailed Medication Information")
         
         # Medication details
