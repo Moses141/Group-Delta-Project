@@ -1,3 +1,8 @@
+# Group Delta
+- Puoch Mabor Makuei, S23B23/055
+- Kiisa Angela, S23B23/027
+- Nkangi Moses, M23B23/027
+
 # Pharmacy Demand & Stock Monitoring Dashboard
 
 A comprehensive Streamlit dashboard for predicting medicine demand using SARIMA models and monitoring stock levels in real-time.
