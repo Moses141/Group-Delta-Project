@@ -107,7 +107,7 @@ def main():
             series, apply_log = prepare_time_series(df, med)
             
             if len(series) < 20:
-                print(f"  ⚠️  Insufficient data (only {len(series)} points)")
+                print(f"  Insufficient data (only {len(series)} points)")
                 failed_count += 1
                 continue
             
@@ -115,7 +115,7 @@ def main():
             model, train_series, train_size_idx = train_sarima_model(series)
             
             if model is None:
-                print(f"  ❌ Model training failed")
+                print(f" Model training failed")
                 failed_count += 1
                 continue
             
@@ -133,7 +133,7 @@ def main():
             with open(model_file, 'wb') as f:
                 pickle.dump(model_data, f)
             
-            print(f"  ✅ Model saved to {model_file}")
+            print(f" Model saved to {model_file}")
             trained_count += 1
             
             # Store info
@@ -145,7 +145,7 @@ def main():
             }
             
         except Exception as e:
-            print(f"  ❌ Error: {e}")
+            print(f"   Error: {e}")
             failed_count += 1
     
     # Save models index
@@ -156,10 +156,10 @@ def main():
     print("\n" + "=" * 60)
     print("Training Summary")
     print("=" * 60)
-    print(f"✅ Successfully trained: {trained_count} models")
-    print(f"❌ Failed: {failed_count} models")
-    print(f"📁 Models saved to: {models_dir}/")
-    print(f"📋 Index saved to: {index_file}")
+    print(f" Successfully trained: {trained_count} models")
+    print(f" Failed: {failed_count} models")
+    print(f" Models saved to: {models_dir}/")
+    print(f" Index saved to: {index_file}")
     print("\nYou can now use these pre-trained models in the dashboard for faster loading!")
 
 if __name__ == "__main__":
