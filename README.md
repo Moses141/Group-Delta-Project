@@ -9,8 +9,9 @@ A comprehensive Streamlit dashboard for predicting medicine demand using SARIMA 
 
 ## Features
 
+- 📥 **Record Stock**: Record drug purchases (sales) and restocks through the dashboard; data is persisted in a local SQLite database
 - 📈 **Demand Forecasting**: Uses SARIMA time series models to predict future medication demand
-- 📦 **Stock Monitoring**: Real-time stock level tracking with alerts for low stock
+- 📦 **Stock Monitoring**: Real-time stock level tracking with alerts for low stock (automatically updated from recorded transactions)
 - 📊 **Historical Analysis**: View trends and patterns in medication demand over time
 - 🔍 **Detailed Insights**: Comprehensive medication information and operational metrics
 - ⚠️ **Smart Alerts**: Automatic notifications for critical stock levels
@@ -36,23 +37,33 @@ The dashboard will open in your default web browser at `http://localhost:8501`
 
 ## Dashboard Sections
 
-### 1. Demand Forecast Tab
+### 1. Record Stock Tab
+- Record **purchases** (sales to customers) or **restocks** (new inventory received)
+- Select drug and location; transactions update stock levels across the dashboard
+- View recent transactions for the selected medication
+- Data stored in `pharmacy_stock.db` (SQLite, created automatically)
+
+### 2. Demand Forecast Tab
 - Visual forecast chart with confidence intervals
 - Forecasted demand for the next N weeks
 - Historical vs predicted demand comparison
 
-### 2. Stock Analysis Tab
+### 3. Stock Analysis Tab
 - Stock level projections over time
 - Reorder point and safety stock calculations
 - Stock status indicators (Adequate, Low, Critical)
 - Order recommendations
 
-### 3. Historical Trends Tab
+### 4. Multi-Branch Monitoring Tab (when branch data available)
+- Stock levels by facility/region
+- Branch-level alerts for critical or low stock
+
+### 5. Historical Trends Tab
 - Time series visualization of historical demand
 - Monthly average demand patterns
 - Statistical summary of demand data
 
-### 4. Detailed View Tab
+### 6. Detailed View Tab
 - Complete medication information
 - Operational metrics (lead time, reorder levels, etc.)
 - Raw data preview
@@ -63,7 +74,7 @@ The dashboard will open in your default web browser at `http://localhost:8501`
 
 - **Select Medication**: Choose which medication to analyze
 - **Forecast Weeks**: Number of weeks to forecast (1-12)
-- **Current Stock**: Enter current inventory level
+- **Current Stock**: Defaults to database total (initial + restocks - purchases); can override manually
 - **Lead Time**: Days required for new stock delivery
 - **Safety Stock %**: Percentage buffer for safety stock
 
@@ -74,12 +85,35 @@ The dashboard will open in your default web browser at `http://localhost:8501`
 - 🟠 **Low**: Action required - reorder within 2-3 days
 - 🔴 **Critical**: Urgent - reorder immediately
 
+## Automatic Model Retraining
+
+Models retrain automatically using:
+- **Data**: Last 365 days only (CSV + database purchase transactions)
+- **Schedule**: Daily at 2:00 AM (when configured)
+- **Database**: Purchase transactions from the Record Stock tab improve demand forecasts
+
+### Set up daily retraining at 2am (Windows)
+
+```bash
+python setup_daily_retrain.py
+```
+
+To remove the scheduled task:
+```bash
+python setup_daily_retrain.py remove
+```
+
+Or run retraining manually anytime:
+```bash
+python train_models.py
+```
+
 ## Model Details
 
 The dashboard uses SARIMA (Seasonal AutoRegressive Integrated Moving Average) models:
 - **Order**: (1,1,1) - ARIMA parameters
 - **Seasonal Order**: (1,0,1,52) for weekly data with yearly seasonality
-- **Training**: Uses 80% of historical data for training
+- **Training**: Uses 80% of historical data; data limited to last 365 days (CSV + DB purchases)
 - **Forecasting**: Generates predictions with 95% confidence intervals
 
 ## Data Requirements
@@ -107,6 +141,13 @@ The dashboard expects a CSV file with the following columns:
 
 **Issue**: Model training fails
 - Solution: Check that statsmodels is properly installed and data is valid
+
+## Database
+
+Stock transactions are stored in `pharmacy_stock.db` (SQLite). The dashboard computes current stock as:
+- **Initial stock** (from CSV) + **Restocks** − **Purchases** per drug/location
+
+No database setup required—the file is created automatically on first run.
 
 ## Future Enhancements
 

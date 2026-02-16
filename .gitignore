@@ -1,0 +1,9 @@
+# Pharmacy stock database (local transaction data)
+pharmacy_stock.db
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+venv/
+.venv/
