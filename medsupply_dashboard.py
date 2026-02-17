@@ -868,7 +868,21 @@ def render_pipeline_status():
             with st.spinner("Running pipeline..."):
                 try:
                     r = requests.post(f"{API_BASE}/pipeline/run?force_retrain=false", timeout=300)
-                    st.json(r.json())
+                    data = r.json()
+                    if r.status_code == 200:
+                        stages = data.get("result", {}).get("stages", {})
+                        summary_lines = []
+                        for stage_name, stage_info in stages.items():
+                            status = stage_info.get("status", "unknown")
+                            rows = stage_info.get("rows", "")
+                            icon = "[OK]" if status == "success" else "[FAIL]"
+                            row_text = f" — {rows:,} rows" if isinstance(rows, int) else ""
+                            summary_lines.append(f"{icon} **{stage_name.replace('_', ' ').title()}**: {status}{row_text}")
+                        st.success("Pipeline completed successfully!")
+                        for line in summary_lines:
+                            st.markdown(line)
+                    else:
+                        st.error(f"Pipeline failed: {data.get('detail', 'Unknown error')}")
                 except Exception as e:
                     st.error(f"Pipeline error: {e}")
     with col_b:
@@ -876,7 +890,20 @@ def render_pipeline_status():
             with st.spinner("Retraining..."):
                 try:
                     r = requests.post(f"{API_BASE}/pipeline/retrain", timeout=300)
-                    st.json(r.json())
+                    data = r.json()
+                    if r.status_code == 200:
+                        st.success("Models retrained successfully!")
+                        result = data.get("result", {})
+                        if isinstance(result, dict):
+                            model_info = result.get("model_name", "")
+                            if model_info:
+                                st.markdown(f"**Model**: {model_info}")
+                            metrics = result.get("metrics", {})
+                            if isinstance(metrics, dict):
+                                for k, v in metrics.items():
+                                    st.markdown(f"**{k}**: {v:.4f}" if isinstance(v, float) else f"**{k}**: {v}")
+                    else:
+                        st.error(f"Retrain failed: {data.get('detail', 'Unknown error')}")
                 except Exception as e:
                     st.error(f"Retrain error: {e}")
     with col_c:
@@ -884,7 +911,12 @@ def render_pipeline_status():
             with st.spinner("Ingesting..."):
                 try:
                     r = requests.post(f"{API_BASE}/pipeline/ingest", timeout=60)
-                    st.json(r.json())
+                    data = r.json()
+                    if r.status_code == 200:
+                        rows = data.get("rows_ingested", 0)
+                        st.success(f"Data ingestion complete! {rows:,} rows ingested.")
+                    else:
+                        st.error(f"Ingestion failed: {data.get('detail', 'Unknown error')}")
                 except Exception as e:
                     st.error(f"Ingestion error: {e}")
 

@@ -78,3 +78,44 @@
 2026-02-17 23:44:09,850 [INFO] apscheduler.scheduler: Scheduler started
 2026-02-17 23:44:09,851 [INFO] pipeline.scheduler: Scheduler started – pipeline runs every mon at 02:00
 2026-02-17 23:44:09,851 [INFO] api.main: API startup complete.
+2026-02-18 00:32:41,921 [INFO] pipeline.scheduler: ========== Pipeline run 94f117bb started ==========
+2026-02-18 00:32:41,959 [INFO] database.db_connection: Database tables verified / created.
+2026-02-18 00:32:42,011 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-18 00:32:53,094 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-18 00:32:53,097 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
+2026-02-18 00:32:53,097 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
+2026-02-18 00:32:53,097 [INFO] pipeline.ingestion: === Full ingestion complete: 0 new rows ===
+2026-02-18 00:32:53,117 [INFO] pipeline.scheduler: Ingestion complete: 0 rows
+2026-02-18 00:32:53,161 [INFO] pipeline.preprocessing: Loaded 0 unprocessed raw rows (id > 15000)
+2026-02-18 00:32:53,162 [INFO] pipeline.preprocessing: No new raw data to preprocess.
+2026-02-18 00:32:53,164 [INFO] pipeline.scheduler: Preprocessing complete: 0 rows
+2026-02-18 00:32:53,390 [INFO] pipeline.feature_engineering: Loaded 15000 cleaned rows for feature engineering
+2026-02-18 00:32:53,465 [INFO] pipeline.feature_engineering: Aggregated to 15000 weekly records
+2026-02-18 00:33:00,438 [INFO] pipeline.feature_engineering: Lag and rolling features added
+2026-02-18 00:33:22,764 [INFO] pipeline.feature_engineering: Upserted 15000 weekly aggregated rows
+2026-02-18 00:33:22,786 [INFO] pipeline.scheduler: Feature engineering complete: 15000 rows
+2026-02-18 00:33:22,824 [INFO] pipeline.retrain: New weekly rows since last training: 0 (threshold: 50)
+2026-02-18 00:33:22,824 [INFO] pipeline.retrain: Retraining threshold not met. Skipping.
+2026-02-18 00:33:22,827 [INFO] pipeline.scheduler: Retraining complete: {'retrained': False, 'models': [], 'predictions_count': 0}
+2026-02-18 00:33:22,827 [INFO] pipeline.scheduler: ========== Pipeline run 94f117bb finished ==========
+2026-02-18 00:36:03,927 [INFO] pipeline.retrain: Training data loaded: 15000 rows, 23 columns
+2026-02-18 00:36:03,952 [INFO] pipeline.retrain: Training Random Forest...
+2026-02-18 00:36:06,625 [INFO] pipeline.retrain: Random Forest metrics: {'MAE': 1.2932341585053864, 'RMSE': 4.453232699476299, 'MAPE': 0.0006743804936692153}
+2026-02-18 00:36:06,749 [INFO] models.model_registry: Model saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\random_forest_demand\random_forest_demand_20260217_213606.joblib
+2026-02-18 00:36:06,751 [INFO] models.model_registry: Artifacts saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\random_forest_demand\random_forest_demand_20260217_213606_artifacts.joblib
+2026-02-18 00:36:06,755 [INFO] models.model_registry: Model registered: random_forest_demand v20260217_213606 (rows=12000)
+2026-02-18 00:36:06,761 [INFO] models.model_registry: Promoted random_forest_demand v20260217_213606 to active
+2026-02-18 00:36:06,764 [INFO] pipeline.retrain: Training XGBoost...
+2026-02-18 00:36:07,157 [INFO] pipeline.retrain: XGBoost metrics: {'MAE': 28.42598319943746, 'RMSE': 59.059423942135915, 'MAPE': 0.014433479324814896}
+2026-02-18 00:36:07,168 [INFO] models.model_registry: Model saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\xgboost_demand\xgboost_demand_20260217_213607.joblib
+2026-02-18 00:36:07,170 [INFO] models.model_registry: Artifacts saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\xgboost_demand\xgboost_demand_20260217_213607_artifacts.joblib
+2026-02-18 00:36:07,172 [INFO] models.model_registry: Model registered: xgboost_demand v20260217_213607 (rows=12000)
+2026-02-18 00:36:07,176 [INFO] models.model_registry: Promoted xgboost_demand v20260217_213607 to active
+2026-02-18 00:36:07,352 [INFO] pipeline.retrain: Training data loaded: 15000 rows, 23 columns
+2026-02-18 00:36:09,915 [INFO] pipeline.retrain: Refreshed predictions_cache: 15000 entries
+2026-02-18 00:36:09,923 [INFO] pipeline.retrain: Retraining complete: {'retrained': True, 'models': [{'name': 'random_forest_demand', 'version': '20260217_213606', 'MAE': 1.2932341585053864, 'RMSE': 4.453232699476299, 'MAPE': 0.0006743804936692153}, {'name': 'xgboost_demand', 'version': '20260217_213607', 'MAE': 28.42598319943746, 'RMSE': 59.059423942135915, 'MAPE': 0.014433479324814896}], 'predictions_count': 15000}
+2026-02-18 00:36:29,945 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-18 00:36:40,294 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-18 00:36:40,295 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
+2026-02-18 00:36:40,295 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
+2026-02-18 00:36:40,295 [INFO] pipeline.ingestion: === Full ingestion complete: 0 new rows ===
