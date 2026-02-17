@@ -119,3 +119,28 @@
 2026-02-18 00:36:40,295 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
 2026-02-18 00:36:40,295 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
 2026-02-18 00:36:40,295 [INFO] pipeline.ingestion: === Full ingestion complete: 0 new rows ===
+2026-02-18 00:41:21,866 [INFO] pipeline.scheduler: ========== Pipeline run ce13c6f7 started ==========
+2026-02-18 00:41:21,869 [INFO] database.db_connection: Database tables verified / created.
+2026-02-18 00:41:21,875 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-18 00:41:30,851 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-18 00:41:30,852 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
+2026-02-18 00:41:30,852 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
+2026-02-18 00:41:30,852 [INFO] pipeline.ingestion: === Full ingestion complete: 0 new rows ===
+2026-02-18 00:41:30,856 [INFO] pipeline.scheduler: Ingestion complete: 0 rows
+2026-02-18 00:41:30,881 [INFO] pipeline.preprocessing: Loaded 0 unprocessed raw rows (id > 15000)
+2026-02-18 00:41:30,881 [INFO] pipeline.preprocessing: No new raw data to preprocess.
+2026-02-18 00:41:30,883 [INFO] pipeline.scheduler: Preprocessing complete: 0 rows
+2026-02-18 00:41:31,086 [INFO] pipeline.feature_engineering: Loaded 15000 cleaned rows for feature engineering
+2026-02-18 00:41:31,119 [INFO] pipeline.feature_engineering: Aggregated to 15000 weekly records
+2026-02-18 00:41:36,068 [INFO] pipeline.feature_engineering: Lag and rolling features added
+2026-02-18 00:41:49,050 [INFO] pipeline.feature_engineering: Upserted 15000 weekly aggregated rows
+2026-02-18 00:41:49,066 [INFO] pipeline.scheduler: Feature engineering complete: 15000 rows
+2026-02-18 00:41:49,081 [INFO] pipeline.retrain: New weekly rows since last training: 0 (threshold: 50)
+2026-02-18 00:41:49,082 [INFO] pipeline.retrain: Retraining threshold not met. Skipping.
+2026-02-18 00:41:49,084 [INFO] pipeline.scheduler: Retraining complete: {'retrained': False, 'models': [], 'predictions_count': 0}
+2026-02-18 00:41:49,084 [INFO] pipeline.scheduler: ========== Pipeline run ce13c6f7 finished ==========
+2026-02-18 00:42:05,171 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-18 00:42:14,591 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-18 00:42:14,592 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
+2026-02-18 00:42:14,592 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
+2026-02-18 00:42:14,592 [INFO] pipeline.ingestion: === Full ingestion complete: 0 new rows ===
