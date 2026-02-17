@@ -1,0 +1,80 @@
+2026-02-17 23:37:12,094 [INFO] database.db_connection: Using SQLite fallback: sqlite:///C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\medsupply.db
+2026-02-17 23:37:18,705 [INFO] __main__: ========== Pipeline run b272aa25 started ==========
+2026-02-17 23:37:18,719 [INFO] database.db_connection: Database tables verified / created.
+2026-02-17 23:37:18,748 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-17 23:37:29,678 [INFO] pipeline.ingestion: Inserted 15000 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-17 23:37:29,686 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
+2026-02-17 23:37:29,687 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
+2026-02-17 23:37:29,687 [INFO] pipeline.ingestion: === Full ingestion complete: 15000 new rows ===
+2026-02-17 23:38:52,653 [INFO] database.db_connection: Using SQLite fallback: sqlite:///C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\medsupply.db
+2026-02-17 23:38:58,882 [INFO] __main__: ========== Pipeline run 693f8d7a started ==========
+2026-02-17 23:38:58,953 [INFO] database.db_connection: Database tables verified / created.
+2026-02-17 23:38:58,988 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-17 23:40:00,373 [INFO] pipeline.ingestion: Inserted 15000 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-17 23:40:00,388 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
+2026-02-17 23:40:00,388 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
+2026-02-17 23:40:00,388 [INFO] pipeline.ingestion: === Full ingestion complete: 15000 new rows ===
+2026-02-17 23:40:00,403 [INFO] __main__: Ingestion complete: 15000 rows
+2026-02-17 23:40:00,720 [INFO] pipeline.preprocessing: Loaded 15000 unprocessed raw rows (id > 0)
+2026-02-17 23:40:00,839 [INFO] pipeline.preprocessing: Cleaning complete: 15000 rows retained
+2026-02-17 23:40:41,479 [INFO] pipeline.preprocessing: Wrote 15000 cleaned rows to DB
+2026-02-17 23:40:41,520 [INFO] __main__: Preprocessing complete: 15000 rows
+2026-02-17 23:40:41,857 [INFO] pipeline.feature_engineering: Loaded 15000 cleaned rows for feature engineering
+2026-02-17 23:40:41,934 [INFO] pipeline.feature_engineering: Aggregated to 15000 weekly records
+2026-02-17 23:40:49,471 [INFO] pipeline.feature_engineering: Lag and rolling features added
+2026-02-17 23:41:11,549 [INFO] pipeline.feature_engineering: Upserted 15000 weekly aggregated rows
+2026-02-17 23:41:11,566 [INFO] __main__: Feature engineering complete: 15000 rows
+2026-02-17 23:41:11,857 [INFO] pipeline.retrain: Training data loaded: 15000 rows, 23 columns
+2026-02-17 23:41:11,915 [INFO] pipeline.retrain: Training Random Forest...
+2026-02-17 23:41:16,639 [INFO] pipeline.retrain: Random Forest metrics: {'MAE': 1.2932341585053853, 'RMSE': 4.45323269947628, 'MAPE': 0.0006743804936692152}
+2026-02-17 23:41:16,782 [INFO] models.model_registry: Model saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\random_forest_demand\random_forest_demand_20260217_204116.joblib
+2026-02-17 23:41:16,786 [INFO] models.model_registry: Artifacts saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\random_forest_demand\random_forest_demand_20260217_204116_artifacts.joblib
+2026-02-17 23:41:16,791 [INFO] models.model_registry: Model registered: random_forest_demand v20260217_204116 (rows=12000)
+2026-02-17 23:41:16,800 [INFO] models.model_registry: Promoted random_forest_demand v20260217_204116 to active
+2026-02-17 23:41:16,806 [INFO] pipeline.retrain: Training XGBoost...
+2026-02-17 23:41:17,925 [INFO] pipeline.retrain: XGBoost metrics: {'MAE': 28.42598319943746, 'RMSE': 59.059423942135915, 'MAPE': 0.014433479324814896}
+2026-02-17 23:41:17,941 [INFO] models.model_registry: Model saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\xgboost_demand\xgboost_demand_20260217_204117.joblib
+2026-02-17 23:41:17,949 [INFO] models.model_registry: Artifacts saved: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\trained_models\xgboost_demand\xgboost_demand_20260217_204117_artifacts.joblib
+2026-02-17 23:41:17,952 [INFO] models.model_registry: Model registered: xgboost_demand v20260217_204117 (rows=12000)
+2026-02-17 23:41:17,956 [INFO] models.model_registry: Promoted xgboost_demand v20260217_204117 to active
+2026-02-17 23:41:18,290 [INFO] pipeline.retrain: Training data loaded: 15000 rows, 23 columns
+2026-02-17 23:41:25,395 [INFO] pipeline.retrain: Refreshed predictions_cache: 15000 entries
+2026-02-17 23:41:25,404 [INFO] pipeline.retrain: Retraining complete: {'retrained': True, 'models': [{'name': 'random_forest_demand', 'version': '20260217_204116', 'MAE': 1.2932341585053853, 'RMSE': 4.45323269947628, 'MAPE': 0.0006743804936692152}, {'name': 'xgboost_demand', 'version': '20260217_204117', 'MAE': 28.42598319943746, 'RMSE': 59.059423942135915, 'MAPE': 0.014433479324814896}], 'predictions_count': 15000}
+2026-02-17 23:41:25,418 [INFO] __main__: Retraining complete: {'retrained': True, 'models': [{'name': 'random_forest_demand', 'version': '20260217_204116', 'MAE': 1.2932341585053853, 'RMSE': 4.45323269947628, 'MAPE': 0.0006743804936692152}, {'name': 'xgboost_demand', 'version': '20260217_204117', 'MAE': 28.42598319943746, 'RMSE': 59.059423942135915, 'MAPE': 0.014433479324814896}], 'predictions_count': 15000}
+2026-02-17 23:41:25,419 [INFO] __main__: ========== Pipeline run 693f8d7a finished ==========
+2026-02-17 23:41:52,221 [INFO] database.db_connection: Using SQLite fallback: sqlite:///C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\medsupply.db
+2026-02-17 23:41:56,162 [INFO] api.main: Starting MedSupply AI API...
+2026-02-17 23:41:56,169 [INFO] database.db_connection: Database tables verified / created.
+2026-02-17 23:41:56,169 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-17 23:42:12,288 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-17 23:42:12,723 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-17 23:42:12,725 [INFO] apscheduler.scheduler: Added job "Weekly data pipeline" to job store "default"
+2026-02-17 23:42:12,726 [INFO] apscheduler.scheduler: Scheduler started
+2026-02-17 23:42:12,728 [INFO] pipeline.scheduler: Scheduler started – pipeline runs every mon at 02:00
+2026-02-17 23:42:12,729 [INFO] api.main: API startup complete.
+2026-02-17 23:42:12,730 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-02-17 23:42:12,731 [INFO] pipeline.scheduler: Scheduler stopped.
+2026-02-17 23:42:12,731 [INFO] api.main: API shutdown complete.
+2026-02-17 23:42:51,267 [INFO] database.db_connection: Using SQLite fallback: sqlite:///C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\medsupply.db
+2026-02-17 23:42:55,218 [INFO] api.main: Starting MedSupply AI API...
+2026-02-17 23:42:55,230 [INFO] database.db_connection: Database tables verified / created.
+2026-02-17 23:42:55,231 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-17 23:43:11,963 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-17 23:43:12,289 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-17 23:43:12,291 [INFO] apscheduler.scheduler: Added job "Weekly data pipeline" to job store "default"
+2026-02-17 23:43:12,292 [INFO] apscheduler.scheduler: Scheduler started
+2026-02-17 23:43:12,296 [INFO] pipeline.scheduler: Scheduler started – pipeline runs every mon at 02:00
+2026-02-17 23:43:12,297 [INFO] api.main: API startup complete.
+2026-02-17 23:43:12,298 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-02-17 23:43:12,299 [INFO] pipeline.scheduler: Scheduler stopped.
+2026-02-17 23:43:12,299 [INFO] api.main: API shutdown complete.
+2026-02-17 23:43:50,135 [INFO] database.db_connection: Using SQLite fallback: sqlite:///C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\medsupply.db
+2026-02-17 23:43:54,642 [INFO] api.main: Starting MedSupply AI API...
+2026-02-17 23:43:54,647 [INFO] database.db_connection: Database tables verified / created.
+2026-02-17 23:43:54,648 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-17 23:44:09,533 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-17 23:44:09,849 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-17 23:44:09,850 [INFO] apscheduler.scheduler: Added job "Weekly data pipeline" to job store "default"
+2026-02-17 23:44:09,850 [INFO] apscheduler.scheduler: Scheduler started
+2026-02-17 23:44:09,851 [INFO] pipeline.scheduler: Scheduler started – pipeline runs every mon at 02:00
+2026-02-17 23:44:09,851 [INFO] api.main: API startup complete.

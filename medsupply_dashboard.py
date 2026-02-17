@@ -15,6 +15,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import requests
 
 # ---------------------------------------------------------------------------
 # Page config – runs once when the app loads
@@ -30,6 +31,40 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 if "theme" not in st.session_state:
     st.session_state.theme = "Light"
+
+# ---------------------------------------------------------------------------
+# API Integration – fetch live predictions from FastAPI backend
+# ---------------------------------------------------------------------------
+API_BASE = "http://localhost:8090/api"
+
+
+@st.cache_data(ttl=60)  # Cache for 60 seconds so we don't spam the API
+def fetch_predictions():
+    """
+    Try to pull live predictions from the FastAPI backend.
+    Falls back to SAMPLE_FACILITIES if the API is not running.
+    """
+    try:
+        resp = requests.get(f"{API_BASE}/predictions", timeout=3)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data:  # API returned predictions
+                return data, True
+    except Exception:
+        pass
+    return None, False
+
+
+@st.cache_data(ttl=60)
+def fetch_predictions_summary():
+    """Fetch aggregated risk summary from the API."""
+    try:
+        resp = requests.get(f"{API_BASE}/predictions/summary", timeout=3)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+    return None
 
 # ---------------------------------------------------------------------------
 # Shared data – demo/sample data used across pages (replace with real data later)
@@ -376,7 +411,7 @@ def render_sidebar():
     # Radio acts as a menu; key="nav" lets Streamlit remember the selection across reruns
     page = st.sidebar.radio(
         "Go to",
-        ["Dashboard", "Facility Analysis", "Model Performance", "OOQ Calculator"],
+        ["Dashboard", "Facility Analysis", "Model Performance", "OOQ Calculator", "Pipeline Status"],
         label_visibility="collapsed",
         key="nav",
     )
@@ -458,11 +493,59 @@ def render_dashboard():
         unsafe_allow_html=True,
     )
 
-    # Section: Real-time facility predictions (table from SAMPLE_FACILITIES)
-    st.markdown('<p class="section-title">Real-time facility predictions</p>', unsafe_allow_html=True)
+    # Section: Real-time facility predictions
+    # -----------------------------------------------------------------------
+    # INTEGRATION POINT: Try loading live predictions from the API.
+    # If the FastAPI backend is running, we show real ML predictions.
+    # Otherwise we gracefully fall back to the SAMPLE_FACILITIES demo data.
+    # -----------------------------------------------------------------------
+    live_data, api_available = fetch_predictions()
 
-    df = pd.DataFrame(SAMPLE_FACILITIES)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    if api_available and live_data:
+        st.markdown(
+            '<p class="section-title">Real-time facility predictions (live from pipeline)</p>',
+            unsafe_allow_html=True,
+        )
+        df_pred = pd.DataFrame(live_data)
+        display_cols = {
+            "drug_name": "Drug",
+            "distribution_region": "Region",
+            "current_stock": "Current Stock",
+            "predicted_demand": "Predicted Demand",
+            "recommended_order_qty": "OOQ Recommended",
+            "stockout_risk_level": "Stockout Risk",
+        }
+        # Only show columns that exist
+        available_display = {k: v for k, v in display_cols.items() if k in df_pred.columns}
+        df_show = df_pred[list(available_display.keys())].rename(columns=available_display)
+
+        # Round numeric columns for readability
+        for c in ["Current Stock", "Predicted Demand", "OOQ Recommended"]:
+            if c in df_show.columns:
+                df_show[c] = df_show[c].round(0).astype(int)
+
+        st.dataframe(df_show.head(20), use_container_width=True, hide_index=True)
+
+        # Build chart data from live predictions
+        chart_names = df_show["Drug"].head(6).tolist() if "Drug" in df_show.columns else []
+        chart_stock = df_show["Current Stock"].head(6).tolist() if "Current Stock" in df_show.columns else []
+        chart_demand = df_show["Predicted Demand"].head(6).tolist() if "Predicted Demand" in df_show.columns else []
+        chart_risks = df_pred["stockout_risk_level"].tolist() if "stockout_risk_level" in df_pred.columns else []
+    else:
+        st.markdown(
+            '<p class="section-title">Real-time facility predictions</p>',
+            unsafe_allow_html=True,
+        )
+        df = pd.DataFrame(SAMPLE_FACILITIES)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        if not api_available:
+            st.caption("Showing demo data. Start the API server for live predictions: uvicorn api.main:app")
+
+        # Chart data from sample facilities
+        chart_names = [f["Facility"] for f in SAMPLE_FACILITIES]
+        chart_stock = [f["Current Stock"] for f in SAMPLE_FACILITIES]
+        chart_demand = [f["Predicted Demand"] for f in SAMPLE_FACILITIES]
+        chart_risks = [f["Stockout Risk"] for f in SAMPLE_FACILITIES]
 
     # Two charts side by side: bar chart (stock vs demand) and donut (risk distribution)
     col_left, col_right = st.columns(2)
@@ -474,16 +557,16 @@ def render_dashboard():
         fig.add_trace(
             go.Bar(
                 name="Current stock",
-                x=[f["Facility"] for f in SAMPLE_FACILITIES],
-                y=[f["Current Stock"] for f in SAMPLE_FACILITIES],
+                x=chart_names,
+                y=chart_stock,
                 marker_color=colors[0],
             )
         )
         fig.add_trace(
             go.Bar(
                 name="Predicted demand",
-                x=[f["Facility"] for f in SAMPLE_FACILITIES],
-                y=[f["Predicted Demand"] for f in SAMPLE_FACILITIES],
+                x=chart_names,
+                y=chart_demand,
                 marker_color=colors[1],
             )
         )
@@ -499,8 +582,7 @@ def render_dashboard():
 
     with col_right:
         # Donut: count how many facilities are Low/Medium/High risk, then show as pie
-        risks = [f["Stockout Risk"] for f in SAMPLE_FACILITIES]
-        risk_counts = pd.Series(risks).value_counts()
+        risk_counts = pd.Series(chart_risks).value_counts()
         fc = layout["font"]["color"]
         fig = go.Figure(
             data=[
@@ -711,6 +793,113 @@ def render_ooq_calculator():
 # ---------------------------------------------------------------------------
 # App entry – sidebar decides which page to show; only that page’s content is rendered
 # ---------------------------------------------------------------------------
+def render_pipeline_status():
+    """
+    Pipeline Status page – shows data pipeline health, lets operators
+    trigger runs, view logs, and check model versions.
+
+    INTEGRATION POINT: All data comes from the FastAPI /api/* endpoints.
+    Falls back to a helpful message if the API is not reachable.
+    """
+    inject_css(st.session_state.theme)
+    render_header("Pipeline Status")
+
+    api_up = False
+    try:
+        resp = requests.get(f"{API_BASE}/health", timeout=2)
+        api_up = resp.status_code == 200
+    except Exception:
+        pass
+
+    if not api_up:
+        st.warning(
+            "API server is not running. Start it with:\n\n"
+            "```\nuvicorn api.main:app --host 0.0.0.0 --port 8000\n```"
+        )
+        return
+
+    st.success("API server is online")
+
+    # --- Data statistics ---
+    st.markdown('<p class="section-title">Data Volume</p>', unsafe_allow_html=True)
+    try:
+        stats = requests.get(f"{API_BASE}/data/stats", timeout=3).json()
+        c1, c2, c3, c4 = st.columns(4)
+        for col, (label, key) in zip(
+            [c1, c2, c3, c4],
+            [
+                ("Raw rows", "raw_stock_rows"),
+                ("Cleaned rows", "cleaned_rows"),
+                ("Weekly aggregated", "weekly_aggregated_rows"),
+                ("Cached predictions", "cached_predictions"),
+            ],
+        ):
+            with col:
+                st.markdown(
+                    f'<div class="metric-card">'
+                    f'<div class="label">{label}</div>'
+                    f'<div class="value">{stats.get(key, 0):,}</div>'
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+    except Exception:
+        st.error("Could not fetch data stats.")
+
+    # --- Active models ---
+    st.markdown('<p class="section-title">Active Models</p>', unsafe_allow_html=True)
+    try:
+        models = requests.get(f"{API_BASE}/models/active", timeout=3).json()
+        for name, version in models.items():
+            st.markdown(
+                f'<div class="metric-card">'
+                f'<div class="label">{name}</div>'
+                f'<div class="value">{version}</div>'
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+    except Exception:
+        st.info("No trained models yet. Run the pipeline to train.")
+
+    # --- Pipeline controls ---
+    st.markdown('<p class="section-title">Pipeline Controls</p>', unsafe_allow_html=True)
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        if st.button("Run Full Pipeline"):
+            with st.spinner("Running pipeline..."):
+                try:
+                    r = requests.post(f"{API_BASE}/pipeline/run?force_retrain=false", timeout=300)
+                    st.json(r.json())
+                except Exception as e:
+                    st.error(f"Pipeline error: {e}")
+    with col_b:
+        if st.button("Force Retrain Models"):
+            with st.spinner("Retraining..."):
+                try:
+                    r = requests.post(f"{API_BASE}/pipeline/retrain", timeout=300)
+                    st.json(r.json())
+                except Exception as e:
+                    st.error(f"Retrain error: {e}")
+    with col_c:
+        if st.button("Ingest New Data"):
+            with st.spinner("Ingesting..."):
+                try:
+                    r = requests.post(f"{API_BASE}/pipeline/ingest", timeout=60)
+                    st.json(r.json())
+                except Exception as e:
+                    st.error(f"Ingestion error: {e}")
+
+    # --- Recent pipeline runs ---
+    st.markdown('<p class="section-title">Recent Pipeline Runs</p>', unsafe_allow_html=True)
+    try:
+        history = requests.get(f"{API_BASE}/pipeline/history?limit=10", timeout=3).json()
+        if history:
+            st.dataframe(pd.DataFrame(history), use_container_width=True, hide_index=True)
+        else:
+            st.info("No pipeline runs recorded yet.")
+    except Exception:
+        st.info("No pipeline history available.")
+
+
 def main():
     page = render_sidebar()
 
@@ -720,6 +909,8 @@ def main():
         render_facility_analysis()
     elif page == "Model Performance":
         render_model_performance()
+    elif page == "Pipeline Status":
+        render_pipeline_status()
     else:
         render_ooq_calculator()
 
