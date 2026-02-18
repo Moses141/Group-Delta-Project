@@ -144,3 +144,8 @@
 2026-02-18 00:42:14,592 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
 2026-02-18 00:42:14,592 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
 2026-02-18 00:42:14,592 [INFO] pipeline.ingestion: === Full ingestion complete: 0 new rows ===
+2026-02-18 08:42:26,474 [INFO] pipeline.ingestion: Ingesting CSV: C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv
+2026-02-18 08:42:57,264 [INFO] pipeline.ingestion: Inserted 0 / 15000 rows from 'C:\Users\lomas\OneDrive\Desktop\Group Delta Project\Group-Delta-Project\uganda_drug_supply_synthetic.csv'
+2026-02-18 08:42:57,269 [INFO] pipeline.ingestion: Directory scan complete. Total rows inserted: 0
+2026-02-18 08:42:57,269 [INFO] pipeline.ingestion: No Google Sheet IDs configured – skipping.
+2026-02-18 08:42:57,270 [INFO] pipeline.ingestion: === Full ingestion complete: 0 new rows ===
