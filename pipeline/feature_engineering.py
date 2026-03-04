@@ -82,13 +82,14 @@ def _add_lag_features(df: pd.DataFrame) -> pd.DataFrame:
     for lag, col_name in [(1, "demand_lag_1w"), (2, "demand_lag_2w"), (4, "demand_lag_4w")]:
         df[col_name] = df.groupby(group_cols)["avg_monthly_demand"].shift(lag)
 
-    # Rolling 4-week mean and std
+    # Rolling stats must not use current period target while predicting that period.
+    shifted = df.groupby(group_cols)["avg_monthly_demand"].shift(1)
     df["demand_rolling_4w_mean"] = (
-        df.groupby(group_cols)["avg_monthly_demand"]
+        shifted.groupby(df[group_cols].apply(tuple, axis=1))
         .transform(lambda s: s.rolling(window=4, min_periods=1).mean())
     )
     df["demand_rolling_4w_std"] = (
-        df.groupby(group_cols)["avg_monthly_demand"]
+        shifted.groupby(df[group_cols].apply(tuple, axis=1))
         .transform(lambda s: s.rolling(window=4, min_periods=1).std())
     )
 
