@@ -193,6 +193,7 @@ def _write_cleaned_rows(df: pd.DataFrame) -> int:
         out["raw_id"] = df["id"]
 
     out["cleaned_at"] = datetime.utcnow()
+    out["updated_at"] = datetime.utcnow()
 
     inserted = 0
     with get_session() as session:
