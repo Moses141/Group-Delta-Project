@@ -19,13 +19,17 @@ load_dotenv()
 # Paths
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"           # ingested raw files land here
-CLEAN_DATA_DIR = BASE_DIR / "data" / "cleaned"
-MODEL_DIR = BASE_DIR / "trained_models"
+DATA_DIR = BASE_DIR / "data"
+RAW_DATA_DIR = DATA_DIR / "raw"
+PROCESSED_DATA_DIR = DATA_DIR / "processed"
+CLEAN_DATA_DIR = PROCESSED_DATA_DIR
+ARTIFACTS_DIR = BASE_DIR / "artifacts"
+MODEL_DIR = ARTIFACTS_DIR / "models"
+SCALER_DIR = ARTIFACTS_DIR / "scalers"
 LOG_DIR = BASE_DIR / "logs"
 
 # Create directories if they don't exist
-for d in [DATA_DIR, CLEAN_DATA_DIR, MODEL_DIR, LOG_DIR]:
+for d in [DATA_DIR, RAW_DATA_DIR, PROCESSED_DATA_DIR, ARTIFACTS_DIR, MODEL_DIR, SCALER_DIR, LOG_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
