@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config import INGEST_WATCH_DIR, GOOGLE_SHEETS_CREDENTIALS_FILE, GOOGLE_SHEET_IDS, SEED_CSV
 from database.db_connection import get_session, engine
 from database.schema import RawStockData
+from pipeline.rejections import log_rejected_row
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +124,9 @@ def _insert_rows(df: pd.DataFrame) -> int:
                 session.flush()
                 sp.commit()
                 inserted += 1
-            except Exception:
+            except Exception as exc:
                 sp.rollback()  # rollback only this row
+                log_rejected_row(stage="ingestion", row_data=rec, error_message=str(exc))
                 continue
 
     logger.info("Inserted %d / %d rows from '%s'", inserted, len(records), df["source_file"].iloc[0])
