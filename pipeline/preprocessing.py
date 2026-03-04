@@ -21,6 +21,7 @@ Integration points
 
 import logging
 import os, sys
+import hashlib
 from datetime import datetime
 
 import numpy as np
@@ -31,6 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database.db_connection import get_session, engine
 from database.schema import RawStockData, CleanedStockData
+from pipeline.rejections import log_rejected_row
 
 logger = logging.getLogger(__name__)
 
@@ -54,22 +56,40 @@ SCORE_COLS = [
 ]
 
 
-def _get_max_cleaned_raw_id() -> int:
-    """Return the highest raw_id already present in cleaned_stock_data."""
-    with get_session() as session:
-        result = session.query(func.max(CleanedStockData.raw_id)).scalar()
-        return result or 0
-
-
 def _load_unprocessed_raw(batch_size: int = 50_000) -> pd.DataFrame:
     """
-    Load raw rows that haven't been cleaned yet (raw.id > max cleaned raw_id).
+    Load raw rows and remove those already cleaned based on deterministic row hash.
     Returns a pandas DataFrame.
     """
-    max_id = _get_max_cleaned_raw_id()
-    query = f"SELECT * FROM raw_stock_data WHERE id > {max_id} ORDER BY id LIMIT {batch_size}"
+    query = f"SELECT * FROM raw_stock_data ORDER BY id DESC LIMIT {batch_size}"
     df = pd.read_sql(query, con=engine)
-    logger.info("Loaded %d unprocessed raw rows (id > %d)", len(df), max_id)
+    if df.empty:
+        return df
+
+    hash_input_cols = [
+        "drug_id",
+        "stock_received_date",
+        "facility_type",
+        "distribution_region",
+        "source_file",
+        "initial_stock_units",
+        "average_monthly_demand",
+    ]
+
+    def _hash_row(row):
+        payload = "|".join(str(row.get(col, "")) for col in hash_input_cols)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    df["row_hash"] = df.apply(_hash_row, axis=1)
+
+    with get_session() as session:
+        existing_hashes = {
+            value[0]
+            for value in session.query(CleanedStockData.row_hash).all()
+            if value[0]
+        }
+    df = df[~df["row_hash"].isin(existing_hashes)].copy()
+    logger.info("Loaded %d raw rows after hash deduplication", len(df))
     return df
 
 
@@ -159,6 +179,7 @@ def _write_cleaned_rows(df: pd.DataFrame) -> int:
         "storage_condition_rating", "stockout_occurred", "expiry_rate_percent",
         "predicted_stockout_probability", "expiry_risk_category",
         "year", "month", "iso_week",
+        "row_hash",
     ]
 
     # Ensure stock_received_date is date (not datetime)
@@ -185,6 +206,7 @@ def _write_cleaned_rows(df: pd.DataFrame) -> int:
                 inserted += 1
             except Exception:
                 sp.rollback()
+                log_rejected_row(stage="preprocessing", row_data=rec, error_message="cleaned insert failed")
                 continue
 
     logger.info("Wrote %d cleaned rows to DB", inserted)
