@@ -25,6 +25,7 @@
 - [Usage](#usage)
 - [Model Performance](#model-performance)
 - [Project Structure](#project-structure)
+- [Leakage-Safe ML Pipeline](#leakage-safe-ml-pipeline)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -155,6 +156,34 @@ Uganda's public health facilities face a critical paradox: **simultaneous stocko
 ```
 
 For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
+## 🔒 Leakage-Safe ML Pipeline
+
+The project now uses a standardized feature contract and chronological training workflow:
+
+- `ml/feature_spec.py`: single source of truth for target/time/ID/features/forbidden columns.
+- `ml/preprocessing.py`: `time_series_split()` and train-only imputer/scaler/encoder fitting.
+- `ml/feature_engineering.py`: lag + rolling features with explicit `.shift(1)` before rolling.
+- `ml/train.py`: production training pipeline and artifact export to `artifacts/pipeline.joblib`.
+- `pipeline/retrain.py`: retrains using the same pipeline object used by serving.
+
+### Migration-safe entrypoints
+
+- Existing modules remain callable (`api.main`, `pipeline.scheduler`, `run_model_comparison.py`).
+- New structure is available under:
+    - `apps/api/main.py`
+    - `apps/dashboard/app.py`
+    - `scripts/run_pipeline.py`
+
+### Rejected row logging
+
+Row-level ingestion and preprocessing failures are written to:
+
+- `logs/rejected_rows.jsonl`
+
+Each line contains timestamp, stage, row payload, and error message for auditability.
 
 ---
 
