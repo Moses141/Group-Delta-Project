@@ -29,10 +29,12 @@ Run
 import logging
 import os
 import sys
+import joblib
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config import API_HOST, API_PORT, LOG_FILE, LOG_LEVEL
+from config import ARTIFACTS_DIR
 
 # Logging setup (before importing anything that logs)
 logging.basicConfig(
@@ -72,6 +74,13 @@ async def lifespan(app: FastAPI):
 
     # 3. Start background scheduler
     start_scheduler()
+
+    pipeline_artifact = ARTIFACTS_DIR / "pipeline.joblib"
+    if pipeline_artifact.exists():
+        app.state.pipeline_bundle = joblib.load(pipeline_artifact)
+        logger.info("Loaded pipeline artifact for serving: %s", pipeline_artifact)
+    else:
+        app.state.pipeline_bundle = None
 
     logger.info("API startup complete.")
     yield
