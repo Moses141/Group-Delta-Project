@@ -210,7 +210,7 @@ async def upload_data_file(file: UploadFile = File(...)):
 @router.get("/models/active")
 def active_models():
     """List the currently active model version for each model name."""
-    model_names = ["random_forest_demand", "xgboost_demand"]
+    model_names = ["demand_pipeline", "random_forest_demand", "xgboost_demand"]
     result = {}
     for name in model_names:
         version = get_active_version(name)
