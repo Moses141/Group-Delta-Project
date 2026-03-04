@@ -16,6 +16,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import requests
+from config import API_HOST, API_PORT
 
 # ---------------------------------------------------------------------------
 # Page config – runs once when the app loads
@@ -35,7 +36,8 @@ if "theme" not in st.session_state:
 # ---------------------------------------------------------------------------
 # API Integration – fetch live predictions from FastAPI backend
 # ---------------------------------------------------------------------------
-API_BASE = "http://localhost:8090/api"
+_api_host = "localhost" if API_HOST in ("0.0.0.0", "::") else API_HOST
+API_BASE = f"http://{_api_host}:{API_PORT}/api"
 
 
 @st.cache_data(ttl=60)  # Cache for 60 seconds so we don't spam the API
