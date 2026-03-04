@@ -90,7 +90,9 @@ class CleanedStockData(Base):
 
     id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     raw_id = Column(BigInteger, nullable=True, comment="FK reference to raw_stock_data.id")
+    row_hash = Column(String(64), nullable=True, comment="Deterministic row hash for deduplication")
     cleaned_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     drug_id = Column(String(64))
     drug_name = Column(String(256))
@@ -123,6 +125,7 @@ class CleanedStockData(Base):
     iso_week = Column(Integer)
 
     __table_args__ = (
+        UniqueConstraint("row_hash", name="uq_clean_row_hash"),
         Index("ix_clean_drug_week", "drug_id", "year", "iso_week"),
     )
 
