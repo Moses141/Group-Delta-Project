@@ -1,0 +1,11 @@
+drug_id,drug_name,opening_stock_units,total_received,total_dispensed,current_stock
+D001,Artemether-Lumefantrine,2860,66969,69379,450
+D002,Amoxicillin 500mg,2563,52553,53993,1123
+D003,Paracetamol 500mg,4033,65270,67565,1738
+D004,Ceftriaxone Injection,2769,64493,65173,2089
+D005,Metformin 850mg,4875,65882,68914,1843
+D006,Salbutamol Inhaler,2791,66657,68882,566
+D007,ORS Sachets,2553,67761,69622,692
+D008,Coartem Pediatric,2936,63996,66147,785
+D009,Azithromycin 250mg,4694,62519,64837,2376
+D010,Ibuprofen 400mg,4335,62344,64545,2134
