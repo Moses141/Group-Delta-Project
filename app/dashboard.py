@@ -374,6 +374,18 @@ def load_last_refresh_timestamp():
         return None
 
 
+def processed_outputs_available(monthly: pd.DataFrame, forecast: pd.DataFrame, stock_status_df: pd.DataFrame) -> bool:
+    """
+    Check if the key processed outputs exist.
+    Used to guard dashboard pages individually (not the whole app).
+    """
+    if monthly is None or forecast is None or stock_status_df is None:
+        return False
+    if monthly.empty or forecast.empty or stock_status_df.empty:
+        return False
+    return True
+
+
 @st.cache_data
 def load_stock_receipts():
     path = DATA_DIR / "stock_receipts.csv"
@@ -1334,13 +1346,6 @@ def main():
     sales_drugs = load_drug_names()
     id_to_name, id_to_cat = build_drug_lookup(sales_drugs)
 
-    if monthly.empty or forecast.empty:
-        st.warning(
-            "Monthly demand or forecast data not found. Run notebooks 01 and 02–05 to generate "
-            "`outputs/monthly_demand.csv` and `outputs/next_3_month_forecast.csv`, then restart the dashboard."
-        )
-        st.stop()
-
     # Shared computed data
     stock_status_df = load_stock_status()
     if not stock_status_df.empty and "current_stock" in stock_status_df.columns:
@@ -1425,6 +1430,19 @@ def main():
     if page == "Upload & Refresh Data":
         render_upload_refresh_page(DATA_DIR, OUTPUTS_DIR)
         return
+
+    data_ready = processed_outputs_available(monthly, forecast, stock_status_df)
+
+    if not data_ready and page in {"Overview", "Procurement Planner", "Drug Detail"}:
+        section_header("No data yet", "")
+        st.info(
+            "No pharmacy data has been processed yet.\n\n"
+            "Use **Upload & Refresh Data** in the sidebar to upload your sales, stock receipts, "
+            "and opening stock files. After processing, forecasts and dashboard recommendations "
+            "will appear automatically on this page."
+        )
+        return
+
     if page == "Overview":
         render_overview_page(
             stats, total_last_3_f, id_to_name,
@@ -1432,7 +1450,7 @@ def main():
         )
     elif page == "Procurement Planner":
         render_procurement_page(reorder_df_f, days_supply_df_f, stockout_risk_df_f)
-    else:
+    else:  # Drug Detail
         render_drug_detail_page(
             selected_id, selected_name, selected_category,
             monthly, forecast, stock,
