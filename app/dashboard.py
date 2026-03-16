@@ -18,6 +18,13 @@ import plotly.express as px
 from pathlib import Path
 from io import StringIO
 
+from app.processing import refresh_all
+from app.validation import (
+    validate_opening_stock_upload,
+    validate_sales_upload,
+    validate_stock_receipts_upload,
+)
+
 # ---------------------------------------------------------------------------
 # Visual design helpers (no impact on calculations)
 # ---------------------------------------------------------------------------
@@ -94,6 +101,12 @@ def render_product_header():
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_last_refresh_chip():
+    ts = load_last_refresh_timestamp()
+    if ts:
+        st.caption(f"Last refresh (UTC): {ts}")
 
 
 def format_int(n):
@@ -345,6 +358,20 @@ def load_stock_status():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
     return df
+
+
+@st.cache_data
+def load_last_refresh_timestamp():
+    path = OUTPUTS_DIR / "last_refresh.json"
+    if not path.exists():
+        return None
+    try:
+        import json
+
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload.get("last_refresh_utc")
+    except Exception:
+        return None
 
 
 @st.cache_data
@@ -1176,6 +1203,118 @@ def render_procurement_page(
             )
 
 
+def render_upload_refresh_page(data_dir: Path, outputs_dir: Path):
+    section_header("Upload & Refresh Data", "Upload the latest full files and refresh forecasts and dashboard outputs.")
+
+    st.markdown(
+        """
+**Simple, safe update approach**
+- Uploaded files are treated as the **latest authoritative full records** and will **replace** the existing raw CSVs in `data/`.
+- After processing, forecasts and dashboard recommendations will refresh automatically.
+
+**First-time setup:** upload **Sales**, **Stock receipts**, and **Opening stock**.  
+**Regular updates:** upload the latest full **Sales** and **Stock receipts**; **Opening stock** is optional if unchanged.
+        """
+    )
+
+    with st.expander("Upload files", expanded=True):
+        sales_file = st.file_uploader("Sales / dispensing file (CSV)", type=["csv"], key="upl_sales")
+        stock_file = st.file_uploader("Stock receipts file (CSV)", type=["csv"], key="upl_stock")
+        opening_file = st.file_uploader(
+            "Opening stock file (CSV) — optional after initial setup",
+            type=["csv"],
+            key="upl_opening",
+        )
+
+    # Initial setup if any required raw file is missing on disk
+    initial_setup_needed = not (
+        (data_dir / "sales_transactions.csv").exists()
+        and (data_dir / "stock_receipts.csv").exists()
+        and (data_dir / "opening_stock.csv").exists()
+    )
+
+    st.info(
+        "Initial setup is required (missing one or more raw data files)." if initial_setup_needed
+        else "Regular update mode: upload the latest full files and refresh."
+    )
+
+    # Validate any provided uploads and show previews
+    validations = {}
+    if sales_file is not None:
+        validations["Sales"] = validate_sales_upload(sales_file)
+    if stock_file is not None:
+        validations["Stock receipts"] = validate_stock_receipts_upload(stock_file)
+    if opening_file is not None:
+        validations["Opening stock"] = validate_opening_stock_upload(opening_file)
+
+    if validations:
+        section_header("Validation preview", "Quick checks before saving and processing.")
+        for label, res in validations.items():
+            if res.ok:
+                st.success(f"{label}: {res.message}")
+            else:
+                st.error(f"{label}: {res.message}")
+            if res.df_preview is not None and not res.df_preview.empty:
+                st.dataframe(res.df_preview, use_container_width=True, hide_index=True)
+
+    # Guidance warnings (non-blocking)
+    if initial_setup_needed:
+        needed = []
+        if sales_file is None:
+            needed.append("Sales / dispensing")
+        if stock_file is None:
+            needed.append("Stock receipts")
+        if opening_file is None:
+            needed.append("Opening stock")
+        if needed:
+            st.warning(f"To complete first-time setup, please upload: {', '.join(needed)}.")
+    else:
+        if sales_file is None or stock_file is None:
+            st.warning(
+                "For a proper refresh, upload both the latest full Sales and Stock receipts files. "
+                "Opening stock is optional."
+            )
+
+    st.markdown("---")
+    process_clicked = st.button("Process uploaded files and refresh dashboard", type="primary")
+    if not process_clicked:
+        return
+
+    # Hard validation gate
+    for res in validations.values():
+        if not res.ok:
+            st.error("Fix validation errors above before processing.")
+            return
+
+    if initial_setup_needed and (sales_file is None or stock_file is None or opening_file is None):
+        st.error("Initial setup requires all three files: Sales, Stock receipts, and Opening stock.")
+        return
+
+    # Save uploaded files (replace raw CSVs); keep existing file if not uploaded
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        if sales_file is not None:
+            (data_dir / "sales_transactions.csv").write_bytes(sales_file.getvalue())
+        if stock_file is not None:
+            (data_dir / "stock_receipts.csv").write_bytes(stock_file.getvalue())
+        if opening_file is not None:
+            (data_dir / "opening_stock.csv").write_bytes(opening_file.getvalue())
+    except Exception as e:
+        st.error(f"Failed to save uploaded files: {e}")
+        return
+
+    # Run processing and regenerate outputs
+    try:
+        with st.spinner("Processing data and regenerating outputs (monthly demand, stock status, forecasts)…"):
+            _ = refresh_all(data_dir=data_dir, outputs_dir=outputs_dir)
+        st.success("Refresh complete. Dashboard outputs have been updated.")
+        st.caption("Navigate to Overview / Procurement Planner / Drug Detail to see updated results.")
+        st.cache_data.clear()
+        st.rerun()
+    except Exception as e:
+        st.error(f"Refresh failed: {e}")
+
+
 def main():
     st.set_page_config(
         page_title="Pharmacy Dashboard",
@@ -1185,6 +1324,7 @@ def main():
     )
     inject_global_css()
     render_product_header()
+    render_last_refresh_chip()
 
     # Load data once
     monthly = load_monthly_demand()
@@ -1240,7 +1380,7 @@ def main():
     st.sidebar.markdown("### Navigation")
     page = st.sidebar.radio(
         "Navigation",
-        ["Overview", "Procurement Planner", "Drug Detail"],
+        ["Overview", "Procurement Planner", "Drug Detail", "Upload & Refresh Data"],
         index=0,
         key="page_nav",
     )
@@ -1282,6 +1422,9 @@ def main():
     days_supply_df_f = filter_df_by_allowed_ids(days_supply_df, allowed_ids, "drug_id")
 
     # ---------------- Render selected page ----------------
+    if page == "Upload & Refresh Data":
+        render_upload_refresh_page(DATA_DIR, OUTPUTS_DIR)
+        return
     if page == "Overview":
         render_overview_page(
             stats, total_last_3_f, id_to_name,
