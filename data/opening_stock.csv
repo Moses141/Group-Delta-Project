@@ -1,11 +1,36 @@
-drug_id,drug_name,opening_stock_units
-D001,Artemether-Lumefantrine,2860
-D002,Amoxicillin 500mg,2563
-D003,Paracetamol 500mg,4033
-D004,Ceftriaxone Injection,2769
-D005,Metformin 850mg,4875
-D006,Salbutamol Inhaler,2791
-D007,ORS Sachets,2553
-D008,Coartem Pediatric,2936
-D009,Azithromycin 250mg,4694
-D010,Ibuprofen 400mg,4335
+drug_id,drug_name,category,opening_stock_units,facility_name,as_of_date
+D001,Artemether-Lumefantrine 20/120mg,Antimalarial,4420,Allan Galpin Health Center,2019-01-01
+D002,Artesunate Injection 60mg,Antimalarial,2580,Allan Galpin Health Center,2019-01-01
+D003,Dihydroartemisinin-Piperaquine,Antimalarial,1900,Allan Galpin Health Center,2019-01-01
+D004,Quinine Sulphate 300mg,Antimalarial,1764,Allan Galpin Health Center,2019-01-01
+D005,Sulfadoxine-Pyrimethamine,Antimalarial,3840,Allan Galpin Health Center,2019-01-01
+D006,Amoxicillin 500mg Capsules,Antibiotic,6720,Allan Galpin Health Center,2019-01-01
+D007,Azithromycin 250mg Tablets,Antibiotic,2925,Allan Galpin Health Center,2019-01-01
+D008,Ceftriaxone Injection 1g,Antibiotic,1716,Allan Galpin Health Center,2019-01-01
+D009,Ciprofloxacin 500mg Tablets,Antibiotic,2660,Allan Galpin Health Center,2019-01-01
+D010,Metronidazole 400mg Tablets,Antibiotic,4455,Allan Galpin Health Center,2019-01-01
+D011,Doxycycline 100mg Capsules,Antibiotic,2436,Allan Galpin Health Center,2019-01-01
+D012,Erythromycin 500mg Tablets,Antibiotic,1420,Allan Galpin Health Center,2019-01-01
+D013,Paracetamol 500mg Tablets,Analgesic,10340,Allan Galpin Health Center,2019-01-01
+D014,Ibuprofen 400mg Tablets,Analgesic,4900,Allan Galpin Health Center,2019-01-01
+D015,Diclofenac 50mg Tablets,Analgesic,2800,Allan Galpin Health Center,2019-01-01
+D016,Tramadol 50mg Capsules,Analgesic,1185,Allan Galpin Health Center,2019-01-01
+D017,Salbutamol Inhaler 100mcg,Respiratory,3045,Allan Galpin Health Center,2019-01-01
+D018,Beclomethasone Inhaler 250mcg,Respiratory,1580,Allan Galpin Health Center,2019-01-01
+D019,Aminophylline 100mg Tablets,Respiratory,1728,Allan Galpin Health Center,2019-01-01
+D020,Prednisolone 5mg Tablets,Respiratory,1650,Allan Galpin Health Center,2019-01-01
+D021,Metformin 850mg Tablets,Antidiabetic,4440,Allan Galpin Health Center,2019-01-01
+D022,Glibenclamide 5mg Tablets,Antidiabetic,2280,Allan Galpin Health Center,2019-01-01
+D023,Insulin Soluble 100IU/mL,Antidiabetic,1230,Allan Galpin Health Center,2019-01-01
+D024,Amlodipine 5mg Tablets,Cardiovascular,4005,Allan Galpin Health Center,2019-01-01
+D025,Enalapril 10mg Tablets,Cardiovascular,2695,Allan Galpin Health Center,2019-01-01
+D026,Hydrochlorothiazide 25mg,Cardiovascular,2730,Allan Galpin Health Center,2019-01-01
+D027,Atenolol 50mg Tablets,Cardiovascular,1975,Allan Galpin Health Center,2019-01-01
+D028,ORS Sachets,Gastrointestinal,4050,Allan Galpin Health Center,2019-01-01
+D029,Zinc Sulphate 20mg Dispersible,Gastrointestinal,2380,Allan Galpin Health Center,2019-01-01
+D030,Omeprazole 20mg Capsules,Gastrointestinal,2920,Allan Galpin Health Center,2019-01-01
+D031,Loperamide 2mg Capsules,Gastrointestinal,2002,Allan Galpin Health Center,2019-01-01
+D032,Ferrous Sulphate 200mg Tablets,Maternal Health,4900,Allan Galpin Health Center,2019-01-01
+D033,Folic Acid 5mg Tablets,Maternal Health,3780,Allan Galpin Health Center,2019-01-01
+D034,Oxytocin Injection 10IU,Maternal Health,840,Allan Galpin Health Center,2019-01-01
+D035,Misoprostol 200mcg Tablets,Maternal Health,780,Allan Galpin Health Center,2019-01-01

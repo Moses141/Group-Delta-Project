@@ -1384,7 +1384,7 @@ def main():
     # 1) Navigation (default = Overview)
     st.sidebar.markdown("### Navigation")
     page = st.sidebar.radio(
-        "Navigation",
+        "",
         ["Overview", "Procurement Planner", "Drug Detail", "Upload & Refresh Data"],
         index=0,
         key="page_nav",
