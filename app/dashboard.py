@@ -3,11 +3,9 @@ Pharmacy Dashboard — Pharmacist-focused view for reorder decisions,
 demand trends, stock context, and procurement planning.
 
 Run instructions:
-  1. Generate outputs first: run notebooks 01 → 05 so that
-     outputs/monthly_demand.csv and outputs/next_3_month_forecast.csv exist.
-  2. Install: pip install -r app/requirements.txt
-  3. From pharmacy_forecasting/: streamlit run app/dashboard.py
-     Or from app/: streamlit run dashboard.py
+  1. Install dependencies: pip install -r requirements.txt
+  2. Start dashboard: streamlit run app/dashboard.py
+  3. Use "Upload & Refresh Data" to process data and refresh LSTM forecasts
 """
 
 import streamlit as st
@@ -95,7 +93,7 @@ def render_product_header():
         """
 <div class="pf-header">
   <div class="pf-title">Pharmacy Dashboard</div>
-  <div class="pf-subtitle">Reorder suggestions, demand trends, and procurement planning</div>
+  <div class="pf-subtitle">LSTM-based demand forecasting, stock insights, and procurement planning</div>
   <div class="pf-divider"></div>
 </div>
         """,
@@ -1216,7 +1214,7 @@ def render_procurement_page(
 
 
 def render_upload_refresh_page(data_dir: Path, outputs_dir: Path):
-    section_header("Upload & Refresh Data", "Upload the latest full files and refresh forecasts and dashboard outputs.")
+    section_header("Upload & Refresh Data", "Upload the latest full files and refresh LSTM forecasts and dashboard outputs.")
 
     st.markdown(
         """

@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Tuple
 
-import numpy as np
 import pandas as pd
-from statsmodels.tsa.statespace.sarimax import SARIMAX
 
-try:
-    from pmdarima import auto_arima
-except Exception:  # pragma: no cover
-    auto_arima = None
+from app.forecasting import recursive_forecast_next_3, train_global_lstm
+from app.paths import MODELS_DIR, OUTPUTS_DIR, ensure_directories
+from app.utils import save_json
 
 
 @dataclass
@@ -20,7 +16,7 @@ class RefreshOutputs:
     monthly_demand: pd.DataFrame
     stock_status: pd.DataFrame
     forecast_next_3: pd.DataFrame
-    sarima_orders: dict
+    evaluation_metrics: pd.DataFrame
 
 
 def load_raw_data(data_dir: Path) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -35,6 +31,8 @@ def clean_sales_data(df: pd.DataFrame) -> pd.DataFrame:
     df["transaction_date"] = pd.to_datetime(df["transaction_date"])
     df["drug_id"] = df["drug_id"].astype(str)
     df["drug_name"] = df["drug_name"].astype(str)
+    if "category" in df.columns:
+        df["category"] = df["category"].astype(str)
     df["quantity_dispensed"] = pd.to_numeric(df["quantity_dispensed"], errors="coerce").fillna(0).astype(int)
     return df
 
@@ -108,78 +106,23 @@ def create_stock_status(opening: pd.DataFrame, stock: pd.DataFrame, sales: pd.Da
     return status[["drug_id", "drug_name", "opening_stock_units", "total_received", "total_dispensed", "current_stock"]]
 
 
-def load_or_build_sarima_orders(outputs_dir: Path, monthly: pd.DataFrame, seasonal_period: int = 12) -> dict:
-    orders_path = outputs_dir / "sarima_orders.json"
-    if orders_path.exists():
-        with open(orders_path, "r") as f:
-            raw = json.load(f)
-        # Normalize to tuples
-        out = {}
-        for did, v in raw.items():
-            out[did] = {"order": tuple(v["order"]), "seasonal_order": tuple(v["seasonal_order"])}
-        return out
-
-    if auto_arima is None:
-        raise RuntimeError(
-            "sarima_orders.json not found and pmdarima is not installed. "
-            "Install pmdarima or provide outputs/sarima_orders.json."
-        )
-
-    # Build orders via auto_arima (one-time setup)
-    orders = {}
-    for did in monthly["drug_id"].unique():
-        y = monthly[monthly["drug_id"] == did].set_index("month")["monthly_demand"].asfreq("MS").fillna(0)
-        model = auto_arima(
-            y,
-            seasonal=True,
-            m=seasonal_period,
-            stepwise=True,
-            suppress_warnings=True,
-            error_action="ignore",
-            trace=False,
-        )
-        orders[did] = {"order": model.order, "seasonal_order": model.seasonal_order}
-
-    # Save
-    serializable = {k: {"order": list(v["order"]), "seasonal_order": list(v["seasonal_order"])} for k, v in orders.items()}
-    with open(orders_path, "w") as f:
-        json.dump(serializable, f, indent=2)
-    return orders
+def save_outputs(monthly: pd.DataFrame, stock_status: pd.DataFrame, forecast_df: pd.DataFrame, metrics_df: pd.DataFrame) -> None:
+    ensure_directories()
+    monthly.to_csv(OUTPUTS_DIR / "monthly_demand.csv", index=False)
+    stock_status.to_csv(OUTPUTS_DIR / "stock_status.csv", index=False)
+    forecast_df.to_csv(OUTPUTS_DIR / "next_3_month_forecast.csv", index=False)
+    metrics_df.to_csv(OUTPUTS_DIR / "evaluation_metrics.csv", index=False)
+    save_json(
+        OUTPUTS_DIR / "last_refresh.json",
+        {"last_refresh_utc": pd.Timestamp.utcnow().isoformat(), "forecasting_model": "LSTM"},
+    )
 
 
-def run_forecast_pipeline(monthly: pd.DataFrame, outputs_dir: Path, horizon: int = 3) -> Tuple[pd.DataFrame, dict]:
-    monthly = monthly.copy()
-    monthly["month"] = pd.to_datetime(monthly["month"])
-    orders = load_or_build_sarima_orders(outputs_dir, monthly, seasonal_period=12)
+def refresh_all(data_dir: Path, outputs_dir: Path | None = None) -> RefreshOutputs:
+    # outputs_dir kept for compatibility with existing dashboard calls
+    _ = outputs_dir
+    ensure_directories()
 
-    rows = []
-    for did in monthly["drug_id"].unique():
-        y = monthly[monthly["drug_id"] == did].set_index("month")["monthly_demand"].asfreq("MS").fillna(0)
-        spec = orders.get(did)
-        if spec is None:
-            # Fallback simple spec (keeps pipeline running)
-            spec = {"order": (1, 1, 1), "seasonal_order": (0, 1, 1, 12)}
-        model = SARIMAX(y, order=spec["order"], seasonal_order=spec["seasonal_order"])
-        fitted = model.fit(disp=False)
-        fc = fitted.forecast(steps=horizon)
-        for t, v in fc.items():
-            rows.append({"drug_id": did, "forecast_month": pd.to_datetime(t), "predicted_demand": float(v)})
-
-    forecast_df = pd.DataFrame(rows).sort_values(["drug_id", "forecast_month"]).reset_index(drop=True)
-    forecast_df.to_csv(outputs_dir / "next_3_month_forecast.csv", index=False)
-    return forecast_df, orders
-
-
-def save_outputs(outputs_dir: Path, monthly: pd.DataFrame, stock_status: pd.DataFrame):
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-    monthly.to_csv(outputs_dir / "monthly_demand.csv", index=False)
-    stock_status.to_csv(outputs_dir / "stock_status.csv", index=False)
-
-    meta = {"last_refresh_utc": pd.Timestamp.utcnow().isoformat()}
-    (outputs_dir / "last_refresh.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-
-
-def refresh_all(data_dir: Path, outputs_dir: Path) -> RefreshOutputs:
     sales, stock, opening = load_raw_data(data_dir)
     sales = clean_sales_data(sales)
     stock = clean_stock_data(stock)
@@ -187,8 +130,29 @@ def refresh_all(data_dir: Path, outputs_dir: Path) -> RefreshOutputs:
 
     monthly = ensure_continuous_months(create_monthly_demand(sales))
     stock_status = create_stock_status(opening, stock, sales)
-    save_outputs(outputs_dir, monthly, stock_status)
 
-    forecast_df, orders = run_forecast_pipeline(monthly, outputs_dir, horizon=3)
-    return RefreshOutputs(monthly, stock_status, forecast_df, orders)
+    model_path = MODELS_DIR / "lstm_model.h5"
+    scaler_path = MODELS_DIR / "lstm_scaler.npy"
+    seq_path = OUTPUTS_DIR / "lstm_sequences.npy"
+
+    metrics = train_global_lstm(
+        monthly_demand=monthly,
+        model_path=model_path,
+        scaler_path=scaler_path,
+        sequence_path=seq_path,
+        seq_len=12,
+        epochs=30,
+        batch_size=16,
+    )
+    forecast_df = recursive_forecast_next_3(
+        monthly_demand=monthly,
+        model_path=model_path,
+        scaler_path=scaler_path,
+        seq_len=12,
+        horizon=3,
+    )
+    metrics_df = pd.DataFrame([metrics])
+
+    save_outputs(monthly, stock_status, forecast_df, metrics_df)
+    return RefreshOutputs(monthly, stock_status, forecast_df, metrics_df)
 
