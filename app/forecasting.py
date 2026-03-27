@@ -145,7 +145,21 @@ def recursive_forecast_next_3(
     monthly_demand["month"] = pd.to_datetime(monthly_demand["month"])
     monthly_demand = monthly_demand.sort_values(["drug_id", "month"])
 
-    model = load_model(model_path)
+    # Robust inference-only loading across keras/tensorflow versions.
+    # Some legacy .h5 files store training-time aliases like "keras.metrics.mse"
+    # that can fail to deserialize on newer environments.
+    try:
+        model = load_model(model_path, compile=False)
+    except Exception:
+        try:
+            model = load_model(model_path, compile=False, safe_mode=False)
+        except Exception:
+            model = load_model(
+                model_path,
+                compile=False,
+                safe_mode=False,
+                custom_objects={"mse": "mean_squared_error"},
+            )
     scaler = _load_scaler(scaler_path)
 
     rows = []
