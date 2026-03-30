@@ -7,8 +7,19 @@ from typing import Tuple
 import pandas as pd
 
 from app.forecasting import recursive_forecast_next_3, train_global_lstm
+from app.monthly_lstm_features import enrich_monthly_with_lstm_features
 from app.paths import MODELS_DIR, OUTPUTS_DIR, ensure_directories
+from app.upload_merge import (
+    UPLOAD_MODE_APPEND,
+    UPLOAD_MODE_REPLACE,
+    merge_sales_transactions,
+    merge_stock_receipts,
+    persist_sales_upload,
+    persist_stock_upload,
+)
 from app.utils import save_json
+
+EXPIRY_THRESHOLD_DAYS = 90
 
 
 @dataclass
@@ -103,7 +114,35 @@ def create_stock_status(opening: pd.DataFrame, stock: pd.DataFrame, sales: pd.Da
         - status["total_dispensed"].astype(int)
     )
     status["current_stock"] = status["current_stock"].clip(lower=0).astype(int)
-    return status[["drug_id", "drug_name", "opening_stock_units", "total_received", "total_dispensed", "current_stock"]]
+
+    # Expiry-aware availability: treat near-expiry units as unusable for planning.
+    if "expiry_date" in stock.columns and "quantity_received" in stock.columns:
+        threshold_date = pd.Timestamp.now().normalize() + pd.Timedelta(days=EXPIRY_THRESHOLD_DAYS)
+        expiring_df = stock[stock["expiry_date"].notna() & (stock["expiry_date"] <= threshold_date)].copy()
+        expiring_soon = (
+            expiring_df.groupby("drug_id", as_index=False)["quantity_received"]
+            .sum()
+            .rename(columns={"quantity_received": "expiring_soon"})
+        )
+    else:
+        expiring_soon = pd.DataFrame(columns=["drug_id", "expiring_soon"])
+
+    status = status.merge(expiring_soon, on="drug_id", how="left")
+    status["expiring_soon"] = pd.to_numeric(status["expiring_soon"], errors="coerce").fillna(0).astype(int)
+    status["effective_stock"] = (status["current_stock"] - status["expiring_soon"]).clip(lower=0).astype(int)
+
+    return status[
+        [
+            "drug_id",
+            "drug_name",
+            "opening_stock_units",
+            "total_received",
+            "total_dispensed",
+            "current_stock",
+            "expiring_soon",
+            "effective_stock",
+        ]
+    ]
 
 
 def save_outputs(monthly: pd.DataFrame, stock_status: pd.DataFrame, forecast_df: pd.DataFrame, metrics_df: pd.DataFrame) -> None:
@@ -129,6 +168,7 @@ def refresh_all(data_dir: Path, outputs_dir: Path | None = None) -> RefreshOutpu
     opening = clean_opening_stock_data(opening)
 
     monthly = ensure_continuous_months(create_monthly_demand(sales))
+    monthly = enrich_monthly_with_lstm_features(monthly, stock)
     stock_status = create_stock_status(opening, stock, sales)
 
     model_path = MODELS_DIR / "lstm_model.h5"
@@ -143,11 +183,13 @@ def refresh_all(data_dir: Path, outputs_dir: Path | None = None) -> RefreshOutpu
         seq_len=12,
         epochs=30,
         batch_size=16,
+        stock_receipts=stock,
     )
     forecast_df = recursive_forecast_next_3(
         monthly_demand=monthly,
         model_path=model_path,
         scaler_path=scaler_path,
+        stock_receipts=stock,
         seq_len=12,
         horizon=3,
     )

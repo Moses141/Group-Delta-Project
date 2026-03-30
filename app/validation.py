@@ -48,7 +48,13 @@ def validate_sales_upload(file) -> ValidationResult:
     if numeric.isna().mean() > 0.05:
         return ValidationResult(False, "Sales `quantity_dispensed` has too many non-numeric values.")
 
-    return ValidationResult(True, "Sales file looks valid.", df.head(10))
+    msg = "Sales file looks valid."
+    if "transaction_id" not in df.columns:
+        msg += " Optional `transaction_id` missing — deduplication will use drug_id + transaction_date + quantity_dispensed."
+    elif df["transaction_id"].isna().any():
+        msg += " Some rows lack `transaction_id` — deduplication falls back to drug_id + transaction_date + quantity_dispensed for those rows."
+
+    return ValidationResult(True, msg, df.head(10))
 
 
 def validate_stock_receipts_upload(file) -> ValidationResult:
@@ -71,7 +77,13 @@ def validate_stock_receipts_upload(file) -> ValidationResult:
     if numeric.isna().mean() > 0.05:
         return ValidationResult(False, "Stock receipts `quantity_received` has too many non-numeric values.")
 
-    return ValidationResult(True, "Stock receipts file looks valid.", df.head(10))
+    msg = "Stock receipts file looks valid."
+    if "stock_id" not in df.columns:
+        msg += " Optional `stock_id` missing — deduplication will use drug_id + stock_received_date + quantity_received (+ batch_number if present)."
+    elif df["stock_id"].isna().any():
+        msg += " Some rows lack `stock_id` — deduplication falls back to drug_id + date + quantity (+ batch) for those rows."
+
+    return ValidationResult(True, msg, df.head(10))
 
 
 def validate_opening_stock_upload(file) -> ValidationResult:

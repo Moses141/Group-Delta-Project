@@ -16,6 +16,12 @@ import plotly.express as px
 from pathlib import Path
 from io import StringIO
 
+from app.upload_merge import (
+    UPLOAD_MODE_APPEND,
+    UPLOAD_MODE_REPLACE,
+    persist_sales_upload,
+    persist_stock_upload,
+)
 from app.processing import refresh_all
 from app.validation import (
     validate_opening_stock_upload,
@@ -245,7 +251,7 @@ def style_reorder_table(df: pd.DataFrame):
             subset=["Suggested reorder (units)"], **{"font-weight": "800"}
         )
     # Right-align numeric columns
-    num_cols = [c for c in view.columns if c in ("Current stock", "Avg demand (last 3 months)", "Forecast (next month)", "Suggested reorder (units)")]
+    num_cols = [c for c in view.columns if c in ("Current stock", "Effective stock", "Avg demand (last 3 months)", "Forecast (next month)", "Suggested reorder (units)", "Expiring soon")]
     if num_cols:
         styler = styler.set_properties(subset=num_cols, **{"text-align": "right"})
     # Slight highlight for large reorder values
@@ -284,7 +290,7 @@ def style_days_supply_table(df: pd.DataFrame):
         return df
     view = df.copy()
     styler = view.style
-    num_cols = [c for c in view.columns if c in ("Current stock", "Avg daily demand", "Days of supply")]
+    num_cols = [c for c in view.columns if c in ("Current stock", "Effective stock", "Avg daily demand", "Days of supply")]
     if num_cols:
         styler = styler.set_properties(subset=num_cols, **{"text-align": "right"})
     if "Status" in view.columns:
@@ -352,7 +358,7 @@ def load_stock_status():
     # Basic cleaning
     if "drug_id" in df.columns:
         df["drug_id"] = df["drug_id"].astype(str)
-    for col in ["opening_stock_units", "total_received", "total_dispensed", "current_stock"]:
+    for col in ["opening_stock_units", "total_received", "total_dispensed", "current_stock", "expiring_soon", "effective_stock"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
     return df
@@ -648,9 +654,10 @@ def build_reorder_table(
     monthly_df,
     forecast_df,
     id_to_name,
-    current_stock_by_drug,
+    effective_stock_by_drug,
     next_month_forecast_by_drug,
     avg_last_3_by_drug,
+    expiring_soon_by_drug=None,
 ):
     if monthly_df.empty or forecast_df.empty:
         return pd.DataFrame()
@@ -661,14 +668,16 @@ def build_reorder_table(
     p75 = all_next.quantile(0.75) if len(all_next) else 0
     p25 = all_next.quantile(0.25) if len(all_next) else 0
 
+    expiring_soon_by_drug = expiring_soon_by_drug or {}
     rows = []
     for drug_id in drug_ids:
         sub = monthly_sorted[monthly_sorted["drug_id"] == drug_id]
         last_3 = sub.tail(3)
         avg_last_3 = last_3["monthly_demand"].mean() if len(last_3) else 0.0
         expected_next = next_fc.get(drug_id, 0.0)
-        current_stock = current_stock_by_drug.get(drug_id, 0)
-        suggested = calc_suggested_reorder_qty(expected_next, current_stock, 0.25)
+        effective_stock = effective_stock_by_drug.get(drug_id, 0)
+        suggested = calc_suggested_reorder_qty(expected_next, effective_stock, 0.25)
+        expiring_soon = expiring_soon_by_drug.get(drug_id, 0)
 
         high_demand = expected_next >= p75 if pd.notna(p75) else False
         low_demand = expected_next <= p25 if pd.notna(p25) else False
@@ -691,7 +700,8 @@ def build_reorder_table(
         rows.append({
             "drug_id": drug_id,
             "Drug name": id_to_name.get(drug_id, drug_id),
-            "Current stock": int(current_stock),
+            "Effective stock": int(effective_stock),
+            "Expiring soon": int(expiring_soon),
             "Avg demand (last 3 months)": round(avg_last_3, 1),
             "Forecast (next month)": round(expected_next, 1),
             "Demand trend": change_label,
@@ -704,10 +714,10 @@ def build_reorder_table(
 # ---------------------------------------------------------------------------
 # Days of supply table
 # ---------------------------------------------------------------------------
-def build_days_of_supply_table(drug_ids, id_to_name, current_stock_by_drug, avg_last_3_by_drug):
+def build_days_of_supply_table(drug_ids, id_to_name, effective_stock_by_drug, avg_last_3_by_drug):
     rows = []
     for did in drug_ids:
-        stock = current_stock_by_drug.get(did, 0)
+        stock = effective_stock_by_drug.get(did, 0)
         avg_m = avg_last_3_by_drug.get(did)
         days = calc_days_of_supply(stock, avg_m)
         status, emoji = get_days_of_supply_status(days)
@@ -715,7 +725,7 @@ def build_days_of_supply_table(drug_ids, id_to_name, current_stock_by_drug, avg_
         rows.append({
             "drug_id": did,
             "Drug name": id_to_name.get(did, did),
-            "Current stock": int(stock),
+            "Effective stock": int(stock),
             "Avg daily demand": round(avg_daily, 1) if avg_daily is not None else "—",
             "Days of supply": round(days, 1) if days is not None else "—",
             "Status": f"{emoji} {status}" if emoji != "—" else "—",
@@ -726,16 +736,16 @@ def build_days_of_supply_table(drug_ids, id_to_name, current_stock_by_drug, avg_
 # ---------------------------------------------------------------------------
 # Stockout risk table
 # ---------------------------------------------------------------------------
-def build_stockout_risk_table(drug_ids, id_to_name, current_stock_by_drug, next_month_forecast_by_drug):
+def build_stockout_risk_table(drug_ids, id_to_name, effective_stock_by_drug, next_month_forecast_by_drug):
     rows = []
     for did in drug_ids:
-        stock = current_stock_by_drug.get(did, 0)
+        stock = effective_stock_by_drug.get(did, 0)
         fc = next_month_forecast_by_drug.get(did)
         risk = get_stockout_risk(stock, fc)
         rows.append({
             "drug_id": did,
             "Drug name": id_to_name.get(did, did),
-            "Current stock": int(stock),
+            "Effective stock": int(stock),
             "Forecast (next month)": round(fc, 1) if fc is not None else "—",
             "Stockout risk": risk,
         })
@@ -1042,10 +1052,11 @@ def render_drug_detail_page(
     monthly_df,
     forecast_df,
     stock_df,
-    current_stock_by_drug,
+    effective_stock_by_drug,
     next_month_fc,
     avg_last_3,
     expiry_risk_by_drug,
+    expiring_soon_by_drug,
     time_range,
 ):
     """Single-drug view: summary cards, demand chart, restock context, trend text, export."""
@@ -1061,7 +1072,7 @@ def render_drug_detail_page(
     )
 
     # Summary cards in one clean row (5 cards)
-    stock_val = int(current_stock_by_drug.get(selected_id, 0))
+    stock_val = int(effective_stock_by_drug.get(selected_id, 0))
     fc_next = next_month_fc.get(selected_id)
     days = calc_days_of_supply(stock_val, avg_last_3.get(selected_id))
     days_status, days_emoji = get_days_of_supply_status(days)
@@ -1069,10 +1080,11 @@ def render_drug_detail_page(
     risk_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(risk, "")
     exp = expiry_risk_by_drug.get(selected_id, {})
     exp_risk = exp.get("expiry_risk", "—")
+    expiring_units = int(expiring_soon_by_drug.get(selected_id, 0))
 
     cards = st.columns(5)
     with cards[0]:
-        render_card("Current stock", format_int(stock_val), icon="📦", help_text="Estimated: total received − total dispensed.")
+        render_card("Effective stock", format_int(stock_val), icon="📦", help_text="Estimated: current stock minus units expiring within 90 days.")
     with cards[1]:
         render_card("Next month forecast", format_int(fc_next), icon="📈", help_text="Expected demand next month.")
     with cards[2]:
@@ -1081,6 +1093,8 @@ def render_drug_detail_page(
         render_card("Stockout risk", f"{risk_emoji} {risk}", icon="🧯", help_text="Based on stock vs next-month forecast.")
     with cards[4]:
         render_card("Expiry risk", exp_risk, icon="⏳", help_text="Nearest upcoming batch expiry.")
+    if expiring_units > 0:
+        st.caption(f"{format_int(expiring_units)} units expiring soon (within 90 days).")
 
     st.markdown("<div style='height: 0.9rem'></div>", unsafe_allow_html=True)
     section_header("Demand and forecast", "Actual demand vs next 3 month forecast (dashed).")
@@ -1092,7 +1106,7 @@ def render_drug_detail_page(
     # Restock context
     st.markdown("<div style='height: 0.3rem'></div>", unsafe_allow_html=True)
     section_header("Restock context", "Recent supply activity for the selected drug.")
-    ctx = get_stock_context(selected_id, stock_df, current_stock_by_drug)
+    ctx = get_stock_context(selected_id, stock_df, effective_stock_by_drug)
     if ctx:
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -1175,7 +1189,7 @@ def render_procurement_page(
         display_reorder = display_reorder.sort_values("Drug name")
 
     st.markdown("<div style='height: 0.9rem'></div>", unsafe_allow_html=True)
-    section_header("Suggested reorder", "Suggested order = (next month forecast + 25% buffer) − current stock.")
+    section_header("Suggested reorder", "Suggested order = (next month forecast + 25% buffer) − effective stock.")
     styled = style_reorder_table(display_reorder)
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
@@ -1214,17 +1228,30 @@ def render_procurement_page(
 
 
 def render_upload_refresh_page(data_dir: Path, outputs_dir: Path):
-    section_header("Upload & Refresh Data", "Upload the latest full files and refresh LSTM forecasts and dashboard outputs.")
+    section_header("Upload & Refresh Data", "Upload sales and stock data, then refresh LSTM forecasts and dashboard outputs.")
 
     st.markdown(
         """
-**Simple, safe update approach**
-- Uploaded files are treated as the **latest authoritative full records** and will **replace** the existing raw CSVs in `data/`.
-- After processing, forecasts and dashboard recommendations will refresh automatically.
+**Merge mode (sales & stock receipts)**
+- **Append (default):** new rows are merged with existing CSVs, deduplicated, then sorted. Use for weekly incremental uploads without losing history.
+- **Replace:** uploaded file replaces the CSV on disk (same as the old “full snapshot” behavior).
+
+**Opening stock**
+- When uploaded, it always **replaces** `opening_stock.csv` (not append).
+
+After processing, forecasts and dashboard outputs refresh automatically.
 
 **First-time setup:** upload **Sales**, **Stock receipts**, and **Opening stock**.  
-**Regular updates:** upload the latest full **Sales** and **Stock receipts**; **Opening stock** is optional if unchanged.
+**Regular updates:** upload new **Sales** and/or **Stock receipts** (append recommended); **Opening stock** is optional if unchanged.
         """
+    )
+
+    merge_mode = st.radio(
+        "Sales & stock receipts merge mode",
+        [UPLOAD_MODE_APPEND, UPLOAD_MODE_REPLACE],
+        format_func=lambda m: "Append (merge + dedupe; recommended)" if m == UPLOAD_MODE_APPEND else "Replace entire file on disk",
+        index=0,
+        key="upload_merge_mode",
     )
 
     with st.expander("Upload files", expanded=True):
@@ -1281,7 +1308,7 @@ def render_upload_refresh_page(data_dir: Path, outputs_dir: Path):
     else:
         if sales_file is None or stock_file is None:
             st.warning(
-                "For a proper refresh, upload both the latest full Sales and Stock receipts files. "
+                "For a proper refresh, upload both Sales and Stock receipts (append mode is fine for weekly deltas). "
                 "Opening stock is optional."
             )
 
@@ -1300,13 +1327,13 @@ def render_upload_refresh_page(data_dir: Path, outputs_dir: Path):
         st.error("Initial setup requires all three files: Sales, Stock receipts, and Opening stock.")
         return
 
-    # Save uploaded files (replace raw CSVs); keep existing file if not uploaded
+    # Save uploaded files: append+dedupe or replace for sales/stock; opening always replaces when provided
     try:
         data_dir.mkdir(parents=True, exist_ok=True)
         if sales_file is not None:
-            (data_dir / "sales_transactions.csv").write_bytes(sales_file.getvalue())
+            persist_sales_upload(data_dir, sales_file.getvalue(), merge_mode)
         if stock_file is not None:
-            (data_dir / "stock_receipts.csv").write_bytes(stock_file.getvalue())
+            persist_stock_upload(data_dir, stock_file.getvalue(), merge_mode)
         if opening_file is not None:
             (data_dir / "opening_stock.csv").write_bytes(opening_file.getvalue())
     except Exception as e:
@@ -1346,14 +1373,20 @@ def main():
 
     # Shared computed data
     stock_status_df = load_stock_status()
-    if not stock_status_df.empty and "current_stock" in stock_status_df.columns:
-        current_stock_by_drug = {
-            str(row["drug_id"]): int(row["current_stock"])
+    if not stock_status_df.empty:
+        stock_col = "effective_stock" if "effective_stock" in stock_status_df.columns else "current_stock"
+        effective_stock_by_drug = {
+            str(row["drug_id"]): int(row[stock_col])
             for _, row in stock_status_df.iterrows()
         }
+        expiring_soon_by_drug = {
+            str(row["drug_id"]): int(row["expiring_soon"])
+            for _, row in stock_status_df.iterrows()
+        } if "expiring_soon" in stock_status_df.columns else {}
     else:
         # Fallback to inferred stock if processed status is not available
-        current_stock_by_drug = get_current_stock_by_drug(stock, sales)
+        effective_stock_by_drug = get_current_stock_by_drug(stock, sales)
+        expiring_soon_by_drug = {}
     next_month_fc = get_next_month_forecast(forecast)
     avg_last_3 = get_avg_last_3_months(monthly)
     total_last_3 = get_total_demand_last_3_months(monthly)
@@ -1362,15 +1395,15 @@ def main():
 
     reorder_df = build_reorder_table(
         monthly, forecast, id_to_name,
-        current_stock_by_drug, next_month_fc, avg_last_3,
+        effective_stock_by_drug, next_month_fc, avg_last_3, expiring_soon_by_drug,
     )
     drug_ids_list = list(avg_last_3.keys()) if avg_last_3 else []
     days_supply_df = build_days_of_supply_table(
-        drug_ids_list, id_to_name, current_stock_by_drug, avg_last_3,
+        drug_ids_list, id_to_name, effective_stock_by_drug, avg_last_3,
     )
     stockout_risk_df = build_stockout_risk_table(
         list(next_month_fc.keys()) if next_month_fc else [],
-        id_to_name, current_stock_by_drug, next_month_fc,
+        id_to_name, effective_stock_by_drug, next_month_fc,
     )
     expiring_df = build_expiring_soon_table(expiry_risk_by_drug, id_to_name)
     stats = get_summary_stats(monthly, forecast, reorder_df, stockout_risk_df, expiry_risk_by_drug)
@@ -1452,7 +1485,7 @@ def main():
         render_drug_detail_page(
             selected_id, selected_name, selected_category,
             monthly, forecast, stock,
-            current_stock_by_drug, next_month_fc, avg_last_3, expiry_risk_by_drug,
+            effective_stock_by_drug, next_month_fc, avg_last_3, expiry_risk_by_drug, expiring_soon_by_drug,
             time_range,
         )
 
