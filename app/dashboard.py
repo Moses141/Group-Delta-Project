@@ -36,35 +36,58 @@ def inject_global_css():
     st.markdown(
         """
 <style>
+  :root {
+    --pf-blue-700: #1d4ed8;
+    --pf-blue-600: #2563eb;
+    --pf-blue-500: #3b82f6;
+    --pf-blue-200: #bfdbfe;
+    --pf-blue-100: #dbeafe;
+    --pf-blue-050: #eff6ff;
+    --pf-text-dark: #1e3a8a;
+    --pf-text-mid: #334155;
+  }
   /* Layout */
   .block-container { padding-top: 3rem; padding-bottom: 2.0rem; max-width: 1200px; }
-  [data-testid="stSidebar"] { border-right: 1px solid rgba(255,255,255,0.08); }
+  [data-testid="stSidebar"] {
+    border-right: 1px solid rgba(37,99,235,0.28);
+    background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  }
+  [data-testid="stSidebar"] * {
+    color: var(--pf-text-dark);
+  }
+  [data-testid="stSidebar"] .stRadio > div,
+  [data-testid="stSidebar"] .stSelectbox > div > div {
+    background-color: rgba(255, 255, 255, 0.82);
+    border-radius: 8px;
+  }
 
   /* Header */
   .pf-header {
     padding: 1.1rem 1.2rem;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(37,99,235,0.30);
     border-radius: 14px;
-    background: rgba(255,255,255,0.03);
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
     margin-bottom: 1.0rem;
   }
-  .pf-title { font-size: 2.0rem; font-weight: 800; line-height: 1.1; margin: 0; }
-  .pf-subtitle { font-size: 0.95rem; opacity: 0.85; margin-top: 0.35rem; }
-  .pf-divider { margin-top: 0.9rem; border-top: 1px solid rgba(255,255,255,0.10); }
+  .pf-title { color: var(--pf-text-dark); font-size: 2.0rem; font-weight: 800; line-height: 1.1; margin: 0; }
+  .pf-subtitle { color: var(--pf-text-mid); font-size: 0.95rem; margin-top: 0.35rem; }
+  .pf-divider { margin-top: 0.9rem; border-top: 1px solid rgba(59,130,246,0.35); }
 
   /* Cards */
   .pf-card {
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(37,99,235,0.24);
     border-radius: 14px;
     padding: 0.9rem 1.0rem;
-    background: rgba(255,255,255,0.03);
+    background: linear-gradient(180deg, #ffffff, #eff6ff);
     height: 100%;
     margin-bottom: 1.2rem;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.12);
   }
-  .pf-card-label { font-size: 0.9rem; opacity: 0.82; margin: 0 0 0.30rem 0; letter-spacing: 0.02em; }
-  .pf-card-value { font-size: 1.55rem; font-weight: 800; margin: 0; }
-  .pf-card-help { font-size: 0.78rem; opacity: 0.70; margin-top: 0.35rem; }
+  .pf-card-label { color: var(--pf-text-mid); font-size: 0.9rem; margin: 0 0 0.30rem 0; letter-spacing: 0.02em; display: flex; align-items: center; gap: 0.4rem; }
+  .pf-card-value { color: var(--pf-text-dark); font-size: 1.55rem; font-weight: 800; margin: 0; }
+  .pf-card-help { color: #475569; font-size: 0.78rem; margin-top: 0.35rem; }
+  .pf-icon { width: 16px; height: 16px; display: inline-flex; color: var(--pf-blue-600); flex: 0 0 auto; }
+  .pf-icon svg { width: 16px; height: 16px; display: block; }
 
   /* Badges / pills */
   .pf-badge {
@@ -73,7 +96,7 @@ def inject_global_css():
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 700;
-    border: 1px solid rgba(255,255,255,0.10);
+    border: 1px solid rgba(59,130,246,0.25);
     line-height: 1.1;
     white-space: nowrap;
   }
@@ -87,7 +110,7 @@ def inject_global_css():
   .pf-section-help { font-size: 0.86rem; opacity: 0.78; margin: 0 0 0.65rem 0; }
 
   /* Table tweaks */
-  .stDataFrame { border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
+  .stDataFrame { border: 1px solid rgba(37,99,235,0.20); border-radius: 12px; overflow: hidden; }
 </style>
         """,
         unsafe_allow_html=True,
@@ -145,8 +168,26 @@ def badge_html(label: str, level: str):
     return f'<span class="pf-badge {css}">{label}</span>'
 
 
+def get_icon_svg(icon: str) -> str:
+    icons = {
+        "pill": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="5" stroke="currentColor" stroke-width="1.8"/><path d="M11 7v10" stroke="currentColor" stroke-width="1.8"/></svg>',
+        "box": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M3 7.5 12 12l9-4.5" stroke="currentColor" stroke-width="1.8"/></svg>',
+        "forecast": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18h16M6 15l4-4 3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        "alert": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 2.8 19h18.4L12 3Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4.5M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        "shield": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v6.5c0 4 2.7 6.9 7 8.5 4.3-1.6 7-4.5 7-8.5V6l-7-3Z" stroke="currentColor" stroke-width="1.8"/></svg>',
+        "hourglass": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h10M7 21h10M8 3c0 4 4 5 4 9s-4 5-4 9m8-18c0 4-4 5-4 9s4 5 4 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        "clock": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.8v4.6l3.1 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        "calendar": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 3.5v3M16.5 3.5v3M3.5 9h17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        "download": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v10m0 0 4-4m-4 4-4-4M4 19h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        "interval": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6h12v12H6z" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        "navigation": '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 20 20l-8-4-8 4 8-17Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    }
+    return icons.get(icon, "")
+
+
 def render_card(label: str, value: str, icon: str = "", help_text: str = ""):
-    icon_html = f"{icon} " if icon else ""
+    icon_svg = get_icon_svg(icon)
+    icon_html = f'<span class="pf-icon">{icon_svg}</span>' if icon_svg else ""
     help_html = f'<div class="pf-card-help">{help_text}</div>' if help_text else ""
     st.markdown(
         f"""
@@ -522,12 +563,12 @@ def calc_days_of_supply(current_stock, avg_monthly_demand):
 
 def get_days_of_supply_status(days):
     if days is None or (isinstance(days, float) and np.isnan(days)):
-        return "—", "—"
+        return "—", ""
     if days < 7:
-        return "CRITICAL", "🔴"
+        return "CRITICAL", ""
     if days < 14:
-        return "LOW", "🟡"
-    return "SAFE", "🟢"
+        return "LOW", ""
+    return "SAFE", ""
 
 
 # ---------------------------------------------------------------------------
@@ -720,7 +761,7 @@ def build_days_of_supply_table(drug_ids, id_to_name, effective_stock_by_drug, av
         stock = effective_stock_by_drug.get(did, 0)
         avg_m = avg_last_3_by_drug.get(did)
         days = calc_days_of_supply(stock, avg_m)
-        status, emoji = get_days_of_supply_status(days)
+        status, _ = get_days_of_supply_status(days)
         avg_daily = (avg_m / 30.0) if avg_m and avg_m > 0 else None
         rows.append({
             "drug_id": did,
@@ -728,7 +769,7 @@ def build_days_of_supply_table(drug_ids, id_to_name, effective_stock_by_drug, av
             "Effective stock": int(stock),
             "Avg daily demand": round(avg_daily, 1) if avg_daily is not None else "—",
             "Days of supply": round(days, 1) if days is not None else "—",
-            "Status": f"{emoji} {status}" if emoji != "—" else "—",
+            "Status": status,
         })
     return pd.DataFrame(rows)
 
@@ -787,7 +828,7 @@ def plot_demand_forecast(monthly_df, forecast_df, drug_id, drug_name, months_lim
             go.Scatter(
                 x=sub_m["month"], y=sub_m["monthly_demand"],
                 name="Demand (actual)", mode="lines+markers",
-                line=dict(color="#1f77b4", width=3),
+                line=dict(color="#2563eb", width=3),
                 marker=dict(size=6),
             )
         )
@@ -796,7 +837,7 @@ def plot_demand_forecast(monthly_df, forecast_df, drug_id, drug_name, months_lim
             go.Scatter(
                 x=sub_f["forecast_month"], y=sub_f["predicted_demand"],
                 name="Forecast", mode="lines+markers",
-                line=dict(color="#ff7f0e", width=3, dash="dash"),
+                line=dict(color="#1e40af", width=3, dash="dash"),
                 marker=dict(size=7, symbol="diamond"),
             )
         )
@@ -807,8 +848,8 @@ def plot_demand_forecast(monthly_df, forecast_df, drug_id, drug_name, months_lim
         margin=dict(t=110, b=40, l=40, r=20), height=440,
         hovermode="x unified",
     )
-    fig.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.06)")
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.06)")
+    fig.update_xaxes(showgrid=True, gridcolor="rgba(37,99,235,0.12)")
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(37,99,235,0.12)")
     return fig
 
 
@@ -818,7 +859,7 @@ def plot_top5_demand(total_demand_last_3, id_to_name, top_n=5):
         return go.Figure()
     names = [id_to_name.get(did, did) for did, _ in items]
     values = [v for _, v in items]
-    fig = go.Figure(go.Bar(x=values, y=names, orientation="h", marker_color="#2ca02c"))
+    fig = go.Figure(go.Bar(x=values, y=names, orientation="h", marker_color="#2563eb"))
     fig.update_layout(
         title="Top 5 drugs by demand (last 3 months)",
         xaxis_title="Total demand (units)",
@@ -992,19 +1033,19 @@ def render_overview_page(stats, total_last_3, id_to_name, stockout_risk_df, expi
         # Summary cards (2 rows, 3 columns each)
         r1 = st.columns(3)
         with r1[0]:
-            render_card("Total drugs tracked", format_int(stats["n_drugs"]), icon="💊", help_text="Distinct drugs in the dataset.")
+            render_card("Total drugs tracked", format_int(stats["n_drugs"]), icon="pill", help_text="Distinct drugs in the dataset.")
         with r1[1]:
-            render_card("This month demand", format_int(stats["this_month_total"]), icon="📦", help_text="Total units dispensed in the latest month.")
+            render_card("This month demand", format_int(stats["this_month_total"]), icon="box", help_text="Total units dispensed in the latest month.")
         with r1[2]:
-            render_card("Forecast next month", format_int(stats["forecast_next_total"]), icon="📈", help_text="Total predicted demand for the next month.")
+            render_card("Forecast next month", format_int(stats["forecast_next_total"]), icon="forecast", help_text="Total predicted demand for the next month.")
 
         r2 = st.columns(3)
         with r2[0]:
-            render_card("Drugs needing attention", format_int(stats["needing_attention"]), icon="⚠️", help_text="High priority based on demand level/trend.")
+            render_card("Drugs needing attention", format_int(stats["needing_attention"]), icon="alert", help_text="High priority based on demand level/trend.")
         with r2[1]:
-            render_card("High stockout risk", format_int(stats["high_stockout_risk"]), icon="🧯", help_text="Drugs where stock is below next-month forecast.")
+            render_card("High stockout risk", format_int(stats["high_stockout_risk"]), icon="shield", help_text="Drugs where stock is below next-month forecast.")
         with r2[2]:
-            render_card("Expiring soon", format_int(stats["expiring_soon"]), icon="⏳", help_text="Drugs with an expiry within 90 days.")
+            render_card("Expiring soon", format_int(stats["expiring_soon"]), icon="hourglass", help_text="Drugs with an expiry within 90 days.")
 
     # Top 5 drugs by demand
     st.markdown("<div style='height: 0.8rem'></div>", unsafe_allow_html=True)
@@ -1075,24 +1116,23 @@ def render_drug_detail_page(
     stock_val = int(effective_stock_by_drug.get(selected_id, 0))
     fc_next = next_month_fc.get(selected_id)
     days = calc_days_of_supply(stock_val, avg_last_3.get(selected_id))
-    days_status, days_emoji = get_days_of_supply_status(days)
+    days_status, _ = get_days_of_supply_status(days)
     risk = get_stockout_risk(stock_val, fc_next)
-    risk_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(risk, "")
     exp = expiry_risk_by_drug.get(selected_id, {})
     exp_risk = exp.get("expiry_risk", "—")
     expiring_units = int(expiring_soon_by_drug.get(selected_id, 0))
 
     cards = st.columns(5)
     with cards[0]:
-        render_card("Effective stock", format_int(stock_val), icon="📦", help_text="Estimated: current stock minus units expiring within 90 days.")
+        render_card("Effective stock", format_int(stock_val), icon="box", help_text="Estimated: current stock minus units expiring within 90 days.")
     with cards[1]:
-        render_card("Next month forecast", format_int(fc_next), icon="📈", help_text="Expected demand next month.")
+        render_card("Next month forecast", format_int(fc_next), icon="forecast", help_text="Expected demand next month.")
     with cards[2]:
-        render_card("Days of supply", format_float(days, 1) if days is not None else "—", icon="🕒", help_text=f"Status: {days_emoji} {days_status}")
+        render_card("Days of supply", format_float(days, 1) if days is not None else "—", icon="clock", help_text=f"Status: {days_status}")
     with cards[3]:
-        render_card("Stockout risk", f"{risk_emoji} {risk}", icon="🧯", help_text="Based on stock vs next-month forecast.")
+        render_card("Stockout risk", risk, icon="shield", help_text="Based on stock vs next-month forecast.")
     with cards[4]:
-        render_card("Expiry risk", exp_risk, icon="⏳", help_text="Nearest upcoming batch expiry.")
+        render_card("Expiry risk", exp_risk, icon="hourglass", help_text="Nearest upcoming batch expiry.")
     if expiring_units > 0:
         st.caption(f"{format_int(expiring_units)} units expiring soon (within 90 days).")
 
@@ -1110,13 +1150,13 @@ def render_drug_detail_page(
     if ctx:
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            render_card("Last restock date", pd.Timestamp(ctx["last_restock_date"]).strftime("%Y-%m-%d"), icon="📅")
+            render_card("Last restock date", pd.Timestamp(ctx["last_restock_date"]).strftime("%Y-%m-%d"), icon="calendar")
         with c2:
-            render_card("Last received qty", format_int(ctx["last_quantity_received"]), icon="📥")
+            render_card("Last received qty", format_int(ctx["last_quantity_received"]), icon="download")
         with c3:
-            render_card("Avg restock interval", f"{ctx['avg_restock_interval_days'] or '—'} days", icon="⏱️")
+            render_card("Avg restock interval", f"{ctx['avg_restock_interval_days'] or '—'} days", icon="interval")
         with c4:
-            render_card("Days since restock", format_int(ctx["days_since_restock"]), icon="🧭")
+            render_card("Days since restock", format_int(ctx["days_since_restock"]), icon="navigation")
         if ctx["restock_due_soon"]:
             st.info("Restock due soon — consider reordering.")
     else:
@@ -1164,12 +1204,12 @@ def render_procurement_page(
     section_header("Procurement planner", "Action tables for ordering and coverage planning.")
     row = st.columns(3)
     with row[0]:
-        render_card("HIGH reorder priority", format_int(high_priority), icon="⚠️", help_text="Drugs prioritized for attention.")
+        render_card("HIGH reorder priority", format_int(high_priority), icon="alert", help_text="Drugs prioritized for attention.")
     with row[1]:
-        render_card("Total suggested order", format_int(total_suggested), icon="🧾", help_text="Sum of suggested reorder across drugs.")
+        render_card("Total suggested order", format_int(total_suggested), icon="box", help_text="Sum of suggested reorder across drugs.")
     with row[2]:
         high_stockout = (stockout_risk_df.get("Stockout risk") == "HIGH").sum() if isinstance(stockout_risk_df, pd.DataFrame) and not stockout_risk_df.empty else 0
-        render_card("High stockout risk", format_int(high_stockout), icon="🧯", help_text="Quick signal for urgency.")
+        render_card("High stockout risk", format_int(high_stockout), icon="shield", help_text="Quick signal for urgency.")
 
     # Sort control
     sort_by = st.selectbox(
@@ -1355,7 +1395,7 @@ After processing, forecasts and dashboard outputs refresh automatically.
 def main():
     st.set_page_config(
         page_title="Pharmacy Dashboard",
-        page_icon="📋",
+        page_icon=None,
         layout="wide",
         initial_sidebar_state="expanded",
     )
